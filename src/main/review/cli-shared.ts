@@ -6,7 +6,7 @@ import type {
   Finding,
 } from '../../shared/types';
 
-export const CLI_TIMEOUT_MS = 5 * 60 * 1000;
+export const CLI_TIMEOUT_MS = 10 * 60 * 1000;
 export const now = () => new Date().toISOString();
 
 export const FINDINGS_JSON_INSTRUCTIONS = `
