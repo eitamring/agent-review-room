@@ -1,0 +1,140 @@
+.scene {
+  display: flex;
+  flex-direction: column;
+  border-radius: var(--radius-md);
+  background: var(--color-bg-sunken);
+  border: 1px solid var(--color-border-subtle);
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.room {
+  position: relative;
+  padding: var(--space-3) var(--space-4);
+  min-height: 200px;
+  background: linear-gradient(180deg, #e8e0d4 0%, #d9d0c3 60%, #bfb5a5 100%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.managerStation {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.managerBubble {
+  position: relative;
+  background: #fff;
+  border: 1px solid var(--color-border-default);
+  border-radius: 10px;
+  padding: 4px 10px;
+  font-size: 10px;
+  line-height: 1.3;
+  color: var(--color-text-primary);
+  max-width: 250px;
+  text-align: center;
+  box-shadow: var(--shadow-sm);
+}
+
+.managerBubble::after {
+  content: '';
+  position: absolute;
+  bottom: -5px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 0; height: 0;
+  border-left: 5px solid transparent;
+  border-right: 5px solid transparent;
+  border-top: 5px solid #fff;
+}
+
+.managerBubble::before {
+  content: '';
+  position: absolute;
+  bottom: -7px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 0; height: 0;
+  border-left: 6px solid transparent;
+  border-right: 6px solid transparent;
+  border-top: 6px solid var(--color-border-default);
+}
+
+.managerSprite {
+  width: 150px;
+  height: 161px;
+  background-repeat: no-repeat;
+  image-rendering: pixelated;
+  flex-shrink: 0;
+}
+
+.managerLabel {
+  font-size: 10px;
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-primary);
+}
+
+.reviewerRow {
+  display: flex;
+  justify-content: center;
+  gap: var(--space-4);
+  flex-wrap: wrap;
+}
+
+.reviewerStation {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  min-width: 110px;
+}
+
+.reviewerSprite {
+  width: 100px;
+  height: 107px;
+  background-repeat: no-repeat;
+  image-rendering: pixelated;
+  flex-shrink: 0;
+}
+
+.reviewerLabel {
+  font-size: 9px;
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-primary);
+  text-align: center;
+  max-width: 100px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.providerBadge {
+  font-size: 7px;
+  font-weight: var(--font-weight-semibold);
+  color: #c45a3c;
+  background: rgba(196, 90, 60, 0.1);
+  border-radius: 3px;
+  padding: 1px 4px;
+}
+
+.desk {
+  width: 50px;
+  height: 5px;
+  background: #8b7355;
+  border-radius: 1px;
+  margin-top: -2px;
+  box-shadow: 0 1px 0 #6b563f;
+}
+
+.sceneLabel {
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--color-text-muted);
+  padding: var(--space-2) var(--space-4) 0;
+}

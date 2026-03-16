@@ -1,0 +1,25 @@
+{
+  "providers": [
+    {
+      "id": "claude-cli",
+      "name": "Claude",
+      "cli": "claude",
+      "models": [
+        { "id": "sonnet", "label": "Sonnet" },
+        { "id": "opus", "label": "Opus" },
+        { "id": "haiku", "label": "Haiku" }
+      ]
+    },
+    {
+      "id": "codex-cli",
+      "name": "Codex",
+      "cli": "codex",
+      "models": [
+        { "id": "o3-mini", "label": "o3-mini" },
+        { "id": "o3", "label": "o3" },
+        { "id": "gpt-4.1", "label": "GPT-4.1" },
+        { "id": "gpt-4.1-mini", "label": "GPT-4.1 mini" }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,35 @@
+.scene {
+  display: flex;
+  flex-direction: column;
+  border-radius: var(--radius-md);
+  background: var(--color-bg-sunken);
+  border: 1px solid var(--color-border-subtle);
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.room {
+  position: relative;
+  padding: var(--space-6) var(--space-4) var(--space-4);
+  min-height: 380px;
+  background:
+    linear-gradient(180deg, #e8e0d4 0%, #d9d0c3 60%, #bfb5a5 100%);
+}
+
+.agents {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  justify-content: center;
+  gap: var(--space-6);
+  flex-wrap: wrap;
+}
+
+.sceneLabel {
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--color-text-muted);
+  padding: var(--space-2) var(--space-4) 0;
+}

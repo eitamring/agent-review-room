@@ -1,0 +1,32 @@
+appId: com.agentreviewroom.app
+productName: Agent Review Room
+copyright: Copyright © 2025 Agent Review Room
+
+directories:
+  output: release
+  buildResources: assets
+
+files:
+  - dist/**/*
+  - package.json
+
+extraResources:
+  - from: sessions
+    to: sessions
+    filter:
+      - .gitkeep
+
+win:
+  target:
+    - target: nsis
+      arch: [x64]
+
+mac:
+  target:
+    - target: dmg
+      arch: [x64, arm64]
+
+linux:
+  target:
+    - target: AppImage
+      arch: [x64]

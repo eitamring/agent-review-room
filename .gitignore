@@ -1,0 +1,27 @@
+node_modules/
+dist/
+release/
+*.log
+npm-debug.log*
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Env
+.env
+.env.local
+.env.*.local
+
+# Session data — keep the directory but ignore session subdirs
+sessions/**
+!sessions/.gitkeep
+
+# Misc
+output.json
+
+# Editor
+.vscode/
+.idea/
+*.swp
+*.swo
