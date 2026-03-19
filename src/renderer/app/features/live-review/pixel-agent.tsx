@@ -29,15 +29,15 @@ type Props = {
 type Cfg = { sheet: string; row: number; fps: number; speed: number };
 
 const STATE_MAP: Record<string, Cfg> = {
-  planning:  { sheet: idleSheet, row: 0, fps: 3,  speed: 0.3 },
-  reading:   { sheet: walkSheet, row: 0, fps: 5,  speed: 0.6 },
-  searching: { sheet: runSheet,  row: 0, fps: 8,  speed: 1.2 },
-  comparing: { sheet: walkSheet, row: 1, fps: 4,  speed: 0.5 },
-  drafting:  { sheet: idleSheet, row: 1, fps: 3,  speed: 0.2 },
+  planning:  { sheet: idleSheet, row: 0, fps: 2,  speed: 0 },
+  reading:   { sheet: walkSheet, row: 0, fps: 6,  speed: 1.5 },
+  searching: { sheet: runSheet,  row: 0, fps: 10, speed: 2.5 },
+  comparing: { sheet: walkSheet, row: 1, fps: 5,  speed: 1.0 },
+  drafting:  { sheet: idleSheet, row: 1, fps: 3,  speed: 0 },
   blocked:   { sheet: jumpSheet, row: 0, fps: 6,  speed: 0 },
-  done:      { sheet: idleSheet, row: 0, fps: 2,  speed: 0 },
+  done:      { sheet: idleSheet, row: 0, fps: 1,  speed: 0 },
 };
-const DEFAULT_CFG: Cfg = { sheet: idleSheet, row: 0, fps: 3, speed: 0.3 };
+const DEFAULT_CFG: Cfg = { sheet: idleSheet, row: 0, fps: 2, speed: 0 };
 
 const PROVIDER_HUE: Record<string, number> = {
   'claude-cli': 20,

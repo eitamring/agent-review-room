@@ -73,7 +73,7 @@ async function runViaCli(session: ReviewSession, findingsText: string, taskConte
     cliArgs = ['exec', prompt, ...(model && model !== 'default' ? ['-m', model] : []), '--json'];
   } else if (provider === 'gemini-cli') {
     executable = 'gemini';
-    cliArgs = ['-p', prompt, '--output-format', 'json', '-m', model || 'gemini-2.5-flash', '--sandbox', '--approval-mode', 'yolo'];
+    cliArgs = ['-p', prompt, '--output-format', 'json', '-m', model || 'gemini-2.5-flash', '--sandbox'];
   } else {
     executable = 'claude';
     cliArgs = ['-p', prompt, '--output-format', 'json', '--no-session-persistence', '--model', model || 'sonnet'];

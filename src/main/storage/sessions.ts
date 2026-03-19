@@ -1,25 +1,23 @@
 import fs from 'fs/promises';
 import path from 'path';
-import { app } from 'electron';
 import type { ReviewSession } from '../../shared/types';
-
-// app.getPath('userData') is stable after Electron initialises and is always
-// writable in both dev and packaged builds — unlike process.cwd().
-const sessionsDir = () => path.join(app.getPath('userData'), 'sessions');
+import { resolveSessionPath, sessionsDir } from './session-paths';
 
 class SessionsStore {
-  private sessionDir(id: string): string {
-    return path.join(sessionsDir(), id);
+  private async sessionDir(id: string): Promise<string> {
+    return resolveSessionPath(id);
   }
 
-  private sessionFile(id: string): string {
-    return path.join(this.sessionDir(id), 'session.json');
+  private async sessionFile(id: string): Promise<string> {
+    return resolveSessionPath(id, 'session.json');
   }
 
   async write(session: ReviewSession): Promise<void> {
-    await fs.mkdir(this.sessionDir(session.id), { recursive: true });
+    const sessionDir = await this.sessionDir(session.id);
+    const sessionFile = await this.sessionFile(session.id);
+    await fs.mkdir(sessionDir, { recursive: true });
     await fs.writeFile(
-      this.sessionFile(session.id),
+      sessionFile,
       JSON.stringify(session, null, 2),
       'utf-8',
     );
@@ -27,7 +25,7 @@ class SessionsStore {
 
   async read(id: string): Promise<ReviewSession | null> {
     try {
-      const data = await fs.readFile(this.sessionFile(id), 'utf-8');
+      const data = await fs.readFile(await this.sessionFile(id), 'utf-8');
       return JSON.parse(data) as ReviewSession;
     } catch {
       return null;

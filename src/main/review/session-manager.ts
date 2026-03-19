@@ -1,6 +1,4 @@
 import fs from 'fs/promises';
-import path from 'path';
-import { app } from 'electron';
 import type {
   ReviewSession,
   ReviewerConfig,
@@ -18,6 +16,7 @@ import { runCodexReviewerAgent } from './codex-reviewer-agent';
 import { runGeminiReviewerAgent } from './gemini-reviewer-agent';
 import { runManagerAgent } from './manager-agent';
 import { clusterFindings } from './clustering';
+import { resolveSessionPath } from '../storage/session-paths';
 
 function pickRunner(provider: string) {
   switch (provider) {
@@ -190,12 +189,7 @@ class SessionManager {
 
       const summaryText = await runManagerAgent(session, clusters, allFindings, findingOwners, onEvent, agentResponses);
 
-      const summaryPath = path.join(
-        app.getPath('userData'),
-        'sessions',
-        sessionId,
-        'summary.md',
-      );
+      const summaryPath = await resolveSessionPath(sessionId, 'summary.md');
       await fs.writeFile(summaryPath, summaryText, 'utf-8');
       await onEvent({
         type: 'meeting.summary',
@@ -313,12 +307,7 @@ class SessionManager {
 
       const summaryText = await runManagerAgent(session, clusters, allFindings, findingOwners, onEvent);
 
-      const summaryPath = path.join(
-        app.getPath('userData'),
-        'sessions',
-        sessionId,
-        'summary.md',
-      );
+      const summaryPath = await resolveSessionPath(sessionId, 'summary.md');
       await fs.writeFile(summaryPath, summaryText, 'utf-8');
       await onEvent({
         type: 'meeting.summary',
@@ -367,12 +356,7 @@ class SessionManager {
 
   async getSummary(sessionId: string): Promise<string | null> {
     try {
-      const summaryPath = path.join(
-        app.getPath('userData'),
-        'sessions',
-        sessionId,
-        'summary.md',
-      );
+      const summaryPath = await resolveSessionPath(sessionId, 'summary.md');
       return await fs.readFile(summaryPath, 'utf-8');
     } catch {
       return null;
