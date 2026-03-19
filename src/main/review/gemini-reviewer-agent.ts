@@ -28,7 +28,7 @@ export async function runGeminiReviewerAgent(
     label: 'Starting Gemini review',
   });
 
-  const prompt = await buildPrompt(session, reviewer);
+  const prompt = await buildPrompt(session, reviewer, { includeJsonInstructions: false });
   const model = reviewer.model || 'gemini-2.5-flash';
 
   const args = [
