@@ -105,26 +105,51 @@ async function runViaCli(session: ReviewSession, findingsText: string, taskConte
 
     proc.on('close', (code) => {
       clearTimeout(timeout);
-      if (code !== 0 && !stdout.trim()) {
+      const raw = stdout.trim();
+      if (code !== 0 && !raw) {
         reject(new Error(`CLI manager exited with code ${code}`));
         return;
       }
+
+      // Try JSON envelope (Claude/Gemini --output-format json)
       try {
-        const envelope = JSON.parse(stdout.trim()) as {
-          type?: string;
-          is_error?: boolean;
-          result: unknown;
-        };
+        const envelope = JSON.parse(raw);
         if (envelope.is_error) {
           reject(new Error(`CLI manager error: ${String(envelope.result).slice(0, 500)}`));
           return;
         }
-        // result is the markdown summary text; it may be a string or (if the CLI
-        // ever changes) an object — coerce to string safely.
-        resolve(typeof envelope.result === 'string' ? envelope.result : JSON.stringify(envelope.result));
-      } catch (err) {
-        reject(new Error(`CLI manager parse error: ${(err as Error).message}`));
+        if (envelope.result != null) {
+          resolve(typeof envelope.result === 'string' ? envelope.result : JSON.stringify(envelope.result));
+          return;
+        }
+        if (typeof envelope === 'string') {
+          resolve(envelope);
+          return;
+        }
+      } catch { /* not a single JSON object */ }
+
+      // Try JSONL: extract last assistant message (Codex --json)
+      const lines = raw.split('\n').filter(Boolean);
+      for (let i = lines.length - 1; i >= 0; i--) {
+        try {
+          const evt = JSON.parse(lines[i]);
+          if (evt.result != null) {
+            resolve(typeof evt.result === 'string' ? evt.result : JSON.stringify(evt.result));
+            return;
+          }
+          if (evt.item?.text) {
+            resolve(evt.item.text);
+            return;
+          }
+          if (evt.message?.content && typeof evt.message.content === 'string') {
+            resolve(evt.message.content);
+            return;
+          }
+        } catch { /* skip */ }
       }
+
+      // Fallback: use raw output as summary
+      resolve(raw || 'No summary produced.');
     });
 
     proc.on('error', (err) => {
