@@ -60,7 +60,7 @@ export function PixelAgent({ color: _color, role, state, statusText, label, prov
   const [frame, setFrame] = useState(0);
   const [posX, setPosX] = useState(0);
   const [facingLeft, setFacingLeft] = useState(false);
-  const [paused, setPaused] = useState(false);
+  const pausedRef = useRef(false);
   const targetRef = useRef(0);
   const pauseTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
 
@@ -73,7 +73,7 @@ export function PixelAgent({ color: _color, role, state, statusText, label, prov
 
   // Wandering: pick random targets, walk toward them, pause, repeat
   useEffect(() => {
-    if (cfg.speed <= 0) { setPosX(0); setPaused(false); return; }
+    if (cfg.speed <= 0) { setPosX(0); pausedRef.current = false; return; }
 
     const pickTarget = () => {
       targetRef.current = (Math.random() - 0.5) * 2 * WANDER_RANGE;
@@ -81,19 +81,18 @@ export function PixelAgent({ color: _color, role, state, statusText, label, prov
     pickTarget();
 
     const id = setInterval(() => {
-      if (paused) return;
+      if (pausedRef.current) return;
 
       setPosX((x) => {
         const target = targetRef.current;
         const diff = target - x;
 
         if (Math.abs(diff) < 1) {
-          // Arrived — pause briefly then pick new target
-          setPaused(true);
+          pausedRef.current = true;
           clearTimeout(pauseTimerRef.current);
           pauseTimerRef.current = setTimeout(() => {
             pickTarget();
-            setPaused(false);
+            pausedRef.current = false;
           }, 200 + Math.random() * 500);
           return x;
         }
@@ -108,12 +107,12 @@ export function PixelAgent({ color: _color, role, state, statusText, label, prov
       clearInterval(id);
       clearTimeout(pauseTimerRef.current);
     };
-  }, [cfg.speed, paused]);
+  }, [cfg.speed]);
 
   const bgPosX = -frame * SIZE;
   const bgPosY = -(cfg.row * ROW_H);
   const bubbleText = truncate(label || statusText, 50);
-  const isIdle = paused || cfg.speed <= 0;
+  const isIdle = cfg.speed <= 0;
 
   // When paused, show idle sheet; when walking, show the configured sheet
   const activeSheet = isIdle && cfg.speed > 0 ? idleSheet : cfg.sheet;
