@@ -304,10 +304,52 @@ On Linux: `~/.config/agent-review-room/`. On macOS: `~/Library/Application Suppo
 
 ### Config File
 
-Place a `config.json` at your user config location or project root. You can:
-- Add or remove models from any provider
-- Change display labels
-- The provider `id` must be one of: `claude-cli`, `codex-cli`, `gemini-cli`
+Place a `config.json` at your user config location or project root to customize available models.
+
+The built-in defaults ship with minimal model lists (e.g. Codex only has "Default"). To add specific models, create a config file:
+
+```json
+{
+  "providers": [
+    {
+      "id": "claude-cli",
+      "name": "Claude",
+      "cli": "claude",
+      "models": [
+        { "id": "sonnet", "label": "Sonnet" },
+        { "id": "opus", "label": "Opus" },
+        { "id": "haiku", "label": "Haiku" }
+      ]
+    },
+    {
+      "id": "codex-cli",
+      "name": "Codex",
+      "cli": "codex",
+      "models": [
+        { "id": "default", "label": "Default" },
+        { "id": "o3-mini", "label": "o3-mini" },
+        { "id": "o3", "label": "o3" },
+        { "id": "gpt-4.1", "label": "GPT-4.1" }
+      ]
+    },
+    {
+      "id": "gemini-cli",
+      "name": "Gemini",
+      "cli": "gemini",
+      "models": [
+        { "id": "gemini-2.5-flash", "label": "2.5 Flash" },
+        { "id": "gemini-2.5-pro", "label": "2.5 Pro" }
+      ]
+    }
+  ]
+}
+```
+
+Config file locations (checked in order):
+1. `~/.config/agent-review-room/config.json` (user)
+2. `config.json` in the project root
+
+The provider `id` must be one of: `claude-cli`, `codex-cli`, `gemini-cli`
 
 ### Custom Roles and Skill Files
 

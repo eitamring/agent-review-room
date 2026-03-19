@@ -24,10 +24,6 @@ const DEFAULT_CONFIG: AppConfig = {
       cli: 'codex',
       models: [
         { id: 'default', label: 'Default' },
-        { id: 'o3-mini', label: 'o3-mini' },
-        { id: 'o3', label: 'o3' },
-        { id: 'gpt-4.1', label: 'GPT-4.1' },
-        { id: 'gpt-4.1-mini', label: 'GPT-4.1 mini' },
       ],
     },
     {

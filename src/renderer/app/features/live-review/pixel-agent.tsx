@@ -15,7 +15,7 @@ const SCALE = SIZE / CELL;
 const BG_W = Math.round(SHEET_W * SCALE);
 const BG_H = Math.round(SHEET_H * SCALE);
 const ROW_H = Math.round(BG_H / COLS);
-const WANDER_RANGE = 40;
+const WANDER_RANGE = 70;
 
 type Props = {
   color: string;
@@ -94,7 +94,7 @@ export function PixelAgent({ color: _color, role, state, statusText, label, prov
           pauseTimerRef.current = setTimeout(() => {
             pickTarget();
             setPaused(false);
-          }, 800 + Math.random() * 1500);
+          }, 200 + Math.random() * 500);
           return x;
         }
 
