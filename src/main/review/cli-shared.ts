@@ -6,7 +6,12 @@ import type {
   Finding,
 } from '../../shared/types';
 
-export const CLI_TIMEOUT_MS = 10 * 60 * 1000;
+export const DEFAULT_TIMEOUT_MS = 10 * 60 * 1000;
+export const CLI_TIMEOUT_MS = DEFAULT_TIMEOUT_MS;
+
+export function getTimeoutMs(session: { timeoutMinutes?: number }): number {
+  return (session.timeoutMinutes ?? 10) * 60 * 1000;
+}
 export const now = () => new Date().toISOString();
 
 export const FINDINGS_JSON_INSTRUCTIONS = `

@@ -13,6 +13,7 @@ export type CreateSessionParams = {
   reviewers: ReviewerConfig[];
   manager: ManagerConfig;
   customPrompt?: string;
+  timeoutMinutes?: number;
 };
 
 export type PermissionRequest = {

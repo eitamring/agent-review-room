@@ -53,6 +53,7 @@ export type ReviewSession = {
   repoPath: string;
   reviewTarget: ReviewTarget;
   reviewers: ReviewerConfig[];
+  timeoutMinutes?: number;
   manager: ManagerConfig;
   status: SessionStatus;
   customPrompt?: string;

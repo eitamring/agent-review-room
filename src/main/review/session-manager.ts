@@ -34,6 +34,7 @@ export type CreateSessionParams = {
   reviewers: ReviewerConfig[];
   manager: ManagerConfig;
   customPrompt?: string;
+  timeoutMinutes?: number;
 };
 
 const activeControllers = new Map<string, AbortController>();
@@ -79,6 +80,7 @@ class SessionManager {
       reviewTarget: params.reviewTarget,
       reviewers: params.reviewers,
       manager: params.manager,
+      timeoutMinutes: params.timeoutMinutes,
       status: 'queued',
       customPrompt: params.customPrompt,
     };

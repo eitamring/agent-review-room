@@ -9,7 +9,7 @@ import type {
   Finding,
 } from '../../shared/types';
 import {
-  CLI_TIMEOUT_MS,
+  getTimeoutMs,
   now,
   buildPrompt,
   extractFindings,
@@ -66,7 +66,7 @@ export async function runCodexReviewerAgent(
     const timeout = setTimeout(() => {
       proc.kill('SIGTERM');
       reject(new Error('Codex timed out'));
-    }, CLI_TIMEOUT_MS);
+    }, getTimeoutMs(session));
 
     if (signal) {
       signal.addEventListener('abort', () => proc.kill('SIGTERM'), { once: true });

@@ -72,6 +72,7 @@ export function SetupScreen({ onStart, onResumeSession, submitRef }: SetupScreen
   const [managerModel, setManagerModel] = useState('sonnet');
   const [customPrompt, setCustomPrompt] = useState('Review this repository for bugs, security issues, and code quality. Read the code and diff before reporting findings.');
   const [prFormat, setPrFormat] = useState(true);
+  const [timeoutMin, setTimeoutMin] = useState(10);
   const [reviewers, setReviewers] = useState<ReviewerDraft[]>([
     makeReviewer('security'),
     makeReviewer('architecture'),
@@ -162,6 +163,7 @@ export function SetupScreen({ onStart, onResumeSession, submitRef }: SetupScreen
       })),
       manager: { provider: managerProvider, model: managerModel, synthesisStyle: 'balanced' },
       customPrompt: (customPrompt.trim() || '') + (prFormat ? '\n\nFormat the manager summary as a PR review: list issues, suggested fixes, and an overall verdict.' : ''),
+      timeoutMinutes: timeoutMin,
     });
 
     await window.api.review.start(session.id);
@@ -290,6 +292,20 @@ export function SetupScreen({ onStart, onResumeSession, submitRef }: SetupScreen
           {!modelsForProvider(managerProvider).some((m) => m.id === managerModel) && (
             <input className={`${styles.input} ${styles.flex1}`} value={managerModel} onChange={(e) => setManagerModel(e.target.value)} placeholder="Custom model ID" aria-label="Custom manager model" />
           )}
+        </div>
+        <div className={styles.row}>
+          <span className={styles.sectionLabel} style={{ fontSize: '11px', minWidth: 0 }}>Timeout</span>
+          <input
+            className={styles.input}
+            type="number"
+            min={1}
+            max={60}
+            value={timeoutMin}
+            onChange={(e) => setTimeoutMin(Math.max(1, Math.min(60, Number(e.target.value) || 10)))}
+            style={{ width: 60 }}
+            aria-label="Timeout in minutes"
+          />
+          <span style={{ fontSize: '11px', color: 'var(--color-text-muted)' }}>min per reviewer</span>
         </div>
       </section>
 
