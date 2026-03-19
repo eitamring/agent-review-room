@@ -29,14 +29,19 @@ export function roleLabel(reviewer: ReviewerConfig): string {
 export function extractFindings(text: string | undefined | null, fallbackSource?: string): Finding[] {
   if (!text || !text.trim()) return [];
 
+  // Normalize: strip ANSI codes and collapse whitespace around JSON
+  const clean = text.replace(/\x1b\[[0-9;]*m/g, '');
+
+  // Try 1: direct JSON parse
   try {
-    const parsed = JSON.parse(text);
+    const parsed = JSON.parse(clean);
     if (parsed.findings && Array.isArray(parsed.findings)) {
       return parsed.findings.map((f: Omit<Finding, 'id'>) => ({ id: crypto.randomUUID(), ...f }));
     }
   } catch { /* not direct JSON */ }
 
-  const fenceMatch = text.match(/```(?:json)?\s*\n?([\s\S]*?)\n?```/);
+  // Try 2: extract from code fence (greedy to capture full content)
+  const fenceMatch = clean.match(/```(?:json)?\s*\n?([\s\S]*?)\n?\s*```/);
   if (fenceMatch) {
     try {
       const parsed = JSON.parse(fenceMatch[1]);
@@ -46,29 +51,41 @@ export function extractFindings(text: string | undefined | null, fallbackSource?
     } catch { /* bad JSON in fence */ }
   }
 
-  const braceStart = text.indexOf('{"findings"');
+  // Try 3: brace-match from {"findings" to closing }
+  const braceStart = clean.indexOf('{"findings"');
   if (braceStart >= 0) {
     let depth = 0;
     let end = braceStart;
-    for (let i = braceStart; i < text.length; i++) {
-      if (text[i] === '{') depth++;
-      if (text[i] === '}') depth--;
+    for (let i = braceStart; i < clean.length; i++) {
+      if (clean[i] === '{') depth++;
+      if (clean[i] === '}') depth--;
       if (depth === 0) { end = i + 1; break; }
     }
     try {
-      const parsed = JSON.parse(text.slice(braceStart, end));
+      const parsed = JSON.parse(clean.slice(braceStart, end));
       if (parsed.findings && Array.isArray(parsed.findings)) {
         return parsed.findings.map((f: Omit<Finding, 'id'>) => ({ id: crypto.randomUUID(), ...f }));
       }
     } catch { /* couldn't extract */ }
   }
 
-  if (text.length > 50) {
+  // Try 4: find any [ array of objects with "severity" — even without wrapper
+  const arrayMatch = clean.match(/\[\s*\{[\s\S]*?"severity"[\s\S]*?\}\s*\]/);
+  if (arrayMatch) {
+    try {
+      const arr = JSON.parse(arrayMatch[0]);
+      if (Array.isArray(arr) && arr.length > 0 && arr[0].severity) {
+        return arr.map((f: Omit<Finding, 'id'>) => ({ id: crypto.randomUUID(), ...f }));
+      }
+    } catch { /* not valid */ }
+  }
+
+  if (clean.length > 50) {
     return [{
       id: crypto.randomUUID(),
       severity: 'low',
       title: 'Review Summary',
-      summary: text.slice(0, 2000),
+      summary: clean.slice(0, 2000),
       confidence: 'medium',
       evidence: [{ kind: 'command', excerpt: fallbackSource ?? 'CLI text output (structured parsing failed)' }],
       recommendation: 'Review the full output in the Meeting Room.',
