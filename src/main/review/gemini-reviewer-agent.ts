@@ -55,6 +55,13 @@ export async function runGeminiReviewerAgent(
     const findings: Finding[] = [];
     let buffer = '';
     let resultText = '';
+    let allAssistantText = '';
+    let seconds = 0;
+
+    const heartbeat = setInterval(() => {
+      seconds += 15;
+      void onEvent({ type: 'agent.note', agentId: reviewer.id, at: now(), note: `Gemini working… (${seconds}s)` });
+    }, 15_000);
 
     const timeout = setTimeout(() => {
       proc.kill('SIGTERM');
@@ -80,7 +87,7 @@ export async function runGeminiReviewerAgent(
           }
           if ((evt.type === 'assistant' || evt.type === 'message') && evt.message) {
             const c = (evt.message as { content?: string }).content;
-            if (typeof c === 'string' && c.length > (resultText?.length ?? 0)) resultText = c;
+            if (typeof c === 'string') allAssistantText += c + '\n';
           }
         } catch { /* partial line */ }
       }
@@ -94,6 +101,7 @@ export async function runGeminiReviewerAgent(
     });
 
     proc.on('close', (code) => {
+      clearInterval(heartbeat);
       clearTimeout(timeout);
 
       if (buffer.trim()) {
@@ -105,12 +113,14 @@ export async function runGeminiReviewerAgent(
         } catch { /* ignore */ }
       }
 
-      if (code !== 0 && !resultText) {
+      const textToParse = resultText || allAssistantText;
+
+      if (code !== 0 && !textToParse.trim()) {
         reject(new Error(`Gemini exited with code ${code}`));
         return;
       }
 
-      const extracted = extractFindings(resultText ?? '', 'Gemini text output');
+      const extracted = extractFindings(textToParse, 'Gemini text output');
       emitFindingsAndDone(extracted, findings, reviewer.id, onEvent);
       resolve(findings);
     });
