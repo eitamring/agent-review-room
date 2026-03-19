@@ -115,11 +115,13 @@ async function runViaCli(session: ReviewSession, findingsText: string, taskConte
       try {
         const envelope = JSON.parse(raw);
         if (envelope.is_error) {
-          reject(new Error(`CLI manager error: ${String(envelope.result).slice(0, 500)}`));
+          reject(new Error(`CLI manager error: ${String(envelope.result ?? envelope.response).slice(0, 500)}`));
           return;
         }
-        if (envelope.result != null) {
-          resolve(typeof envelope.result === 'string' ? envelope.result : JSON.stringify(envelope.result));
+        // Claude uses "result", Gemini uses "response"
+        const text = envelope.result ?? envelope.response;
+        if (text != null) {
+          resolve(typeof text === 'string' ? text : JSON.stringify(text));
           return;
         }
         if (typeof envelope === 'string') {

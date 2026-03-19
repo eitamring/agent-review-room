@@ -82,12 +82,18 @@ export async function runGeminiReviewerAgent(
         try {
           const evt = JSON.parse(line);
           processStreamEvent(evt, reviewer.id, onEvent);
-          if (evt.type === 'result') {
-            resultText = typeof evt.result === 'string' ? evt.result : JSON.stringify(evt.result);
+          // Gemini uses "response" field, Claude uses "result"
+          const resultField = evt.result ?? evt.response;
+          if (resultField != null) {
+            resultText = typeof resultField === 'string' ? resultField : JSON.stringify(resultField);
           }
           if ((evt.type === 'assistant' || evt.type === 'message') && evt.message) {
             const c = (evt.message as { content?: string }).content;
             if (typeof c === 'string') allAssistantText += c + '\n';
+          }
+          // Also capture raw text from any event with content
+          if (typeof evt.content === 'string') {
+            allAssistantText += evt.content + '\n';
           }
         } catch { /* partial line */ }
       }
