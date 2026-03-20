@@ -464,7 +464,13 @@ class SessionManager {
 
       response = await chatSession.start(systemPrompt, message);
     } else {
-      response = await chatSession.continue(message);
+      try {
+        response = await chatSession.continue(message);
+      } catch (err) {
+        const { clearChatSession } = await import('./chat-session');
+        clearChatSession(sessionId);
+        response = `Error: ${err instanceof Error ? err.message : String(err)}. Session reset — try again.`;
+      }
     }
 
     const userMsg: ChatMessage = { role: 'user', content: message, at: new Date().toISOString() };
