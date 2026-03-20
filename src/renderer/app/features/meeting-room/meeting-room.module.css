@@ -102,11 +102,22 @@
 }
 .toggleBtn:hover { color: var(--color-text-primary); }
 
-.followUpSection {
-  flex-shrink: 0;
-  border-top: 2px solid var(--color-accent-primary);
-  padding: var(--space-4) var(--space-6);
-  background: var(--color-bg-raised);
+.followUpHeaderBtn {
+  padding: var(--space-1) var(--space-3);
+  background: var(--color-accent-primary); border: none; border-radius: var(--radius-md);
+  font-size: var(--font-size-sm); font-weight: var(--font-weight-semibold); color: #fff; cursor: pointer;
+}
+.followUpHeaderBtn:hover { background: var(--color-accent-hover); }
+.followUpHeaderBtn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.followUpOverlay {
+  position: fixed; inset: 0; background: rgba(44, 40, 37, 0.4);
+  display: flex; align-items: center; justify-content: center; z-index: 100;
+}
+.followUpDialog {
+  background: var(--color-bg-overlay); border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-lg); box-shadow: var(--shadow-lg);
+  padding: var(--space-5); width: 520px; max-width: calc(100vw - var(--space-8));
   display: flex; flex-direction: column; gap: var(--space-3);
 }
 .followUpTitle {

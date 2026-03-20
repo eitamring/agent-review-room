@@ -18,6 +18,7 @@ export function MeetingRoomScreen({ session, onBack, onNewReview }: Props) {
   const [followUpPrompt, setFollowUpPrompt] = useState('');
   const [selectedReviewers, setSelectedReviewers] = useState<Set<string>>(new Set());
   const [followUpRunning, setFollowUpRunning] = useState(false);
+  const [followUpOpen, setFollowUpOpen] = useState(false);
   const [sceneOpen, setSceneOpen] = useState(true);
   const [prDesc, setPrDesc] = useState<string | null>(null);
 
@@ -149,6 +150,11 @@ export function MeetingRoomScreen({ session, onBack, onNewReview }: Props) {
           <p className={styles.sub}>{findings.length} findings</p>
         </div>
         <div className={styles.headerActions}>
+          {sessionStatus === 'completed' && (
+            <button type="button" className={styles.followUpHeaderBtn} onClick={() => setFollowUpOpen(true)} disabled={followUpRunning}>
+              {followUpRunning ? 'Running…' : '+ Follow Up'}
+            </button>
+          )}
           <button type="button" className={styles.ghostBtn} onClick={exportMarkdown} disabled={!summary}>Export Markdown</button>
           <button type="button" className={styles.ghostBtn} onClick={exportJSON} disabled={findings.length === 0}>Export JSON</button>
           <button type="button" className={styles.ghostBtn} onClick={onBack}>← Live Review</button>
@@ -262,42 +268,47 @@ export function MeetingRoomScreen({ session, onBack, onNewReview }: Props) {
         </div>
       </div>
 
-      {(sessionStatus === 'completed' || followUpRunning) ? (
-        <div className={styles.followUpSection}>
-          <h2 className={styles.followUpTitle}>Follow Up</h2>
-          <textarea
-            className={styles.followUpTextarea}
-            placeholder="Ask a follow-up question to the reviewers..."
-            value={followUpPrompt}
-            onChange={(e) => setFollowUpPrompt(e.target.value)}
-            disabled={followUpRunning}
-          />
-          <div className={styles.reviewerCheckboxes}>
-            {session.reviewers.map((r) => (
-              <label key={r.id} className={styles.reviewerCheckbox}>
-                <input
-                  type="checkbox"
-                  checked={selectedReviewers.has(r.id)}
-                  onChange={() => toggleReviewer(r.id)}
-                  disabled={followUpRunning}
-                />
-                {r.role}
-              </label>
-            ))}
-          </div>
-          <div className={styles.followUpActions}>
-            <button
-              type="button"
-              className={styles.followUpBtn}
-              onClick={sendFollowUp}
-              disabled={followUpRunning || !followUpPrompt.trim() || selectedReviewers.size === 0}
-            >
-              Send Follow Up
-            </button>
+      {followUpOpen && (
+        <div className={styles.followUpOverlay} onClick={() => !followUpRunning && setFollowUpOpen(false)}>
+          <div className={styles.followUpDialog} onClick={(e) => e.stopPropagation()}>
+            <h2 className={styles.followUpTitle}>Follow Up Review</h2>
+            <textarea
+              className={styles.followUpTextarea}
+              placeholder="e.g. I fixed all issues, please re-review..."
+              value={followUpPrompt}
+              onChange={(e) => setFollowUpPrompt(e.target.value)}
+              disabled={followUpRunning}
+              rows={4}
+              autoFocus
+            />
+            <div className={styles.reviewerCheckboxes}>
+              {session.reviewers.map((r) => (
+                <label key={r.id} className={styles.reviewerCheckbox}>
+                  <input
+                    type="checkbox"
+                    checked={selectedReviewers.has(r.id)}
+                    onChange={() => toggleReviewer(r.id)}
+                    disabled={followUpRunning}
+                  />
+                  {r.role} ({r.provider})
+                </label>
+              ))}
+            </div>
+            <div className={styles.followUpActions}>
+              <button type="button" className={styles.ghostBtn} onClick={() => setFollowUpOpen(false)} disabled={followUpRunning}>Cancel</button>
+              <button
+                type="button"
+                className={styles.followUpBtn}
+                onClick={() => { sendFollowUp(); setFollowUpOpen(false); }}
+                disabled={followUpRunning || !followUpPrompt.trim() || selectedReviewers.size === 0}
+              >
+                Send Follow Up
+              </button>
+            </div>
             {followUpRunning && <span className={styles.followUpStatus}>Processing follow-up...</span>}
           </div>
         </div>
-      ) : null}
+      )}
     </div>
   );
 }
