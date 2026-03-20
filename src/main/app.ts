@@ -1,7 +1,6 @@
 import { BrowserWindow, app, session } from 'electron';
 import path from 'path';
 import { registerIpcHandlers } from './ipc/handlers';
-import './providers';
 
 let mainWindow: BrowserWindow | null = null;
 

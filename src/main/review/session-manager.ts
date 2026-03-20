@@ -10,7 +10,6 @@ import type {
 import { sessionsStore } from '../storage/sessions';
 import { eventLog } from '../storage/event-log';
 import { findingsStore } from '../storage/findings';
-import { runReviewerAgent } from './reviewer-agent';
 import { runCliReviewerAgent } from './cli-reviewer-agent';
 import { runCodexReviewerAgent } from './codex-reviewer-agent';
 import { runGeminiReviewerAgent } from './gemini-reviewer-agent';
@@ -33,7 +32,7 @@ function pickRunner(provider: string) {
     case 'claude-cli': return runCliReviewerAgent;
     case 'codex-cli': return runCodexReviewerAgent;
     case 'gemini-cli': return runGeminiReviewerAgent;
-    default: return runReviewerAgent;
+    default: return runCliReviewerAgent;
   }
 }
 
