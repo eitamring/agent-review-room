@@ -62,5 +62,14 @@ export type AppApi = {
       }>;
       skills: Array<{ name: string; path: string; content: string }>;
     }>;
+    reload(): Promise<{
+      providers: Array<{
+        id: string;
+        name: string;
+        cli: string;
+        models: Array<{ id: string; label: string }>;
+      }>;
+      skills: Array<{ name: string; path: string; content: string }>;
+    }>;
   };
 };

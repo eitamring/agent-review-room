@@ -89,3 +89,7 @@ export async function loadConfig(): Promise<AppConfig> {
   cached = { providers, skills };
   return cached;
 }
+
+export function reloadConfig(): void {
+  cached = null;
+}

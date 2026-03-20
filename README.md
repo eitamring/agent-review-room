@@ -22,7 +22,7 @@ No API keys are configured in the app -- each CLI manages its own authentication
 
 2. **Live Review** -- Reviewers run concurrently (up to 3 at a time) via their respective CLIs. Watch their activity in real-time: file reads, searches, notes. Robot characters animate in the room scene. If one reviewer fails, the rest continue.
 
-3. **Meeting Room** -- Manager consolidates findings. Stats bar shows per-reviewer counts, severity breakdown, and unique finding count. Findings list with evidence, collapsible room scene, follow-up prompts to re-engage selected reviewers. Export as Markdown or JSON.
+3. **Meeting Room** -- Manager consolidates findings. Single-reviewer sessions skip the manager by design -- the reviewer's output becomes the summary directly, saving tokens and avoiding redundant synthesis. Stats bar shows per-reviewer counts, severity breakdown, and unique finding count. Findings list with evidence, collapsible room scene, follow-up prompts to re-engage selected reviewers. Export as Markdown or JSON.
 
 ## Keyboard Shortcuts
 
@@ -46,7 +46,7 @@ src/
     storage/      File-based persistence (session.json, events.jsonl, findings.json)
     security/     Path guard (realpath-based), command policy (git subcommand allowlist)
     ipc/          IPC channels and handlers (input validation, skill file boundary checks)
-    config.ts     Config-driven provider/model definitions
+    config.ts     Config-driven provider/model definitions (with cache invalidation via CONFIG_RELOAD)
   preload/        Typed IPC bridge (contextIsolation + sandbox)
   renderer/       React 19 UI
     app/
@@ -64,7 +64,7 @@ src/
 - Codex CLI uses `--sandbox read-only`
 - Gemini CLI uses `--sandbox` (Docker-based, limited to 1 concurrent) and `--approval-mode yolo`
 - File tools enforce repo boundary via `fs.realpath` (symlink-safe)
-- Skill file paths validated against allowed directories (built-in skills, user config skills, repo) before session creation
+- Skill file paths validated (must be `.md`, exist on disk, under 50KB) before session creation
 - `read-diff` uses `--no-ext-diff --no-textconv` to prevent external tool execution
 - All agents receive a read-only prompt injection instructing them not to write, edit, or modify any files
 - Restrictive CSP in production

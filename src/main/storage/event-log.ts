@@ -30,7 +30,15 @@ class EventLog {
       const content = await fs.readFile(await this.logFile(sessionId), 'utf-8');
       const lines = content.split('\n').filter(Boolean);
       const tail = lines.slice(-limit);
-      return tail.map((line) => JSON.parse(line) as ReviewEvent);
+      const events: ReviewEvent[] = [];
+      for (const line of tail) {
+        try {
+          events.push(JSON.parse(line) as ReviewEvent);
+        } catch {
+          // skip malformed line
+        }
+      }
+      return events;
     } catch {
       return [];
     }

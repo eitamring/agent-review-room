@@ -194,7 +194,10 @@ class SessionManager {
           .filter((e): e is Extract<ReviewEvent, { type: 'agent.note' }> => e.type === 'agent.note' && e.agentId !== 'system')
           .map((e) => e.note);
         const findingsSummary = allFindings.map((f) => `### [${f.severity}] ${f.title}\n${f.summary}\n${f.evidence.map((e) => `- ${e.path ?? ''}${e.line ? ':' + e.line : ''}`).join('\n')}\n**Recommendation:** ${f.recommendation}`).join('\n\n');
-        summaryText = findingsSummary || notes.join('\n') || 'No findings.';
+        const rawSingle = findingsSummary || notes.join('\n') || 'No findings.';
+        const singleSplit = splitManagerOutput(rawSingle);
+        summaryText = singleSplit.summary;
+        prDesc = singleSplit.prDesc;
       } else {
         let agentResponses: string | undefined;
         if (allFindings.length === 0) {

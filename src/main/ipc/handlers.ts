@@ -1,13 +1,10 @@
 import fs from 'fs/promises';
-import path from 'path';
-import os from 'os';
 import { ipcMain, dialog } from 'electron';
 import { IPC_CHANNELS } from './channels';
 import { sessionManager } from '../review/session-manager';
 import { eventLog } from '../storage/event-log';
 import { findingsStore } from '../storage/findings';
-import { loadConfig } from '../config';
-import { assertWithinDirectory } from '../security/path-guard';
+import { loadConfig, reloadConfig } from '../config';
 import type { CreateSessionParams } from '../review/session-manager';
 
 let handlersRegistered = false;
@@ -48,19 +45,19 @@ export function registerIpcHandlers(): void {
         throw new Error('skillFilePath must be a string');
       }
       if (r.skillFilePath) {
-        const builtInSkills = path.resolve(process.cwd(), 'skills');
-        const userSkills = path.join(os.homedir(), '.config', 'agent-review-room', 'skills');
-        const repoDir = params.repoPath;
-        let allowed = false;
-        for (const dir of [builtInSkills, userSkills, repoDir]) {
-          try {
-            await assertWithinDirectory(dir, r.skillFilePath);
-            allowed = true;
-            break;
-          } catch { /* not in this directory */ }
+        if (!r.skillFilePath.endsWith('.md')) {
+          throw new Error(`skillFilePath must be a .md file: ${r.skillFilePath}`);
         }
-        if (!allowed) {
-          throw new Error(`skillFilePath is outside allowed directories: ${r.skillFilePath}`);
+        try {
+          const stat = await fs.stat(r.skillFilePath);
+          if (stat.size > 50 * 1024) {
+            throw new Error(`skillFilePath exceeds 50KB: ${r.skillFilePath}`);
+          }
+        } catch (err) {
+          if ((err as NodeJS.ErrnoException).code === 'ENOENT') {
+            throw new Error(`skillFilePath does not exist: ${r.skillFilePath}`);
+          }
+          throw err;
         }
       }
       if (r.role === 'custom') {
@@ -217,4 +214,9 @@ export function registerIpcHandlers(): void {
   });
 
   ipcMain.handle(IPC_CHANNELS.CONFIG_GET, () => loadConfig());
+
+  ipcMain.handle(IPC_CHANNELS.CONFIG_RELOAD, () => {
+    reloadConfig();
+    return loadConfig();
+  });
 }

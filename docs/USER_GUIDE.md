@@ -29,7 +29,7 @@ This app runs AI agents that can READ files on your machine. Each agent runs in 
 - Codex CLI uses `--sandbox read-only`.
 - Gemini CLI uses `--sandbox` (Docker-based, limited to 1 concurrent reviewer) with `--approval-mode yolo`.
 - All file access is restricted to the repository you select. Path traversal and symlink escapes are blocked via `fs.realpath`.
-- Skill file paths are validated against allowed directories (built-in skills, user config skills, repo) before session creation.
+- Skill file paths are validated (must be `.md`, exist on disk, under 50KB) before session creation.
 - `read-diff` uses `--no-ext-diff --no-textconv` to prevent external tool execution.
 - All agents receive a read-only prompt injection instructing them not to write, edit, or modify any files.
 
@@ -180,6 +180,8 @@ Press **Start Review** (or `Ctrl+Enter`). Requirements:
 
 The app launches all reviewer agents concurrently (up to 3 at a time) and transitions to the Live Review screen.
 
+**Single-reviewer sessions** skip the manager agent by design. The reviewer's output becomes the summary directly, saving tokens and avoiding redundant synthesis. PR description extraction still applies.
+
 ---
 
 ## 4. Understanding the Live Review
@@ -322,7 +324,7 @@ Built-in agents: **security**, **architecture**, **regression**, **test-gap**, *
 2. Drop it in either skills folder listed above.
 3. Restart the app -- the new agent appears in every reviewer's dropdown.
 
-You can also click **Import Agents Folder** on the Setup screen to load skill files from any directory without restarting.
+You can also click **Import Agents Folder** on the Setup screen to load skill files from any directory without restarting. After importing, the config cache is invalidated so new skills take effect immediately.
 
 For a one-off agent that you don't want to save as a file, select **+ custom** from the agent dropdown and type a description inline.
 

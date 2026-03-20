@@ -22,6 +22,7 @@ export const IPC_CHANNELS = {
   EXPORT_JSON: 'export:json',
 
   CONFIG_GET: 'config:get',
+  CONFIG_RELOAD: 'config:reload',
   FS_LIST_SKILLS: 'fs:list-skills',
 
   CHAT_SEND: 'chat:send',

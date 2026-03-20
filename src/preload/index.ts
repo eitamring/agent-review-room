@@ -24,6 +24,7 @@ const CH = {
   CONFIG_GET: 'config:get',
   CHAT_SEND: 'chat:send',
   CHAT_GET: 'chat:get',
+  CONFIG_RELOAD: 'config:reload',
 } as const;
 
 const api: AppApi = {
@@ -71,6 +72,7 @@ const api: AppApi = {
 
   config: {
     get: () => ipcRenderer.invoke(CH.CONFIG_GET),
+    reload: () => ipcRenderer.invoke(CH.CONFIG_RELOAD),
   },
 };
 
