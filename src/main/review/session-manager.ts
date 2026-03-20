@@ -18,6 +18,19 @@ import { runManagerAgent } from './manager-agent';
 import { clusterFindings } from './clustering';
 import { resolveSessionPath } from '../storage/session-paths';
 
+function splitManagerOutput(raw: string): { summary: string; prDesc: string | null } {
+  const startMarker = '---PR_DESC_START---';
+  const endMarker = '---PR_DESC_END---';
+  const startIdx = raw.indexOf(startMarker);
+  if (startIdx < 0) return { summary: raw.trim(), prDesc: null };
+  const endIdx = raw.indexOf(endMarker, startIdx);
+  const summary = raw.slice(0, startIdx).trim();
+  const prDesc = endIdx > startIdx
+    ? raw.slice(startIdx + startMarker.length, endIdx).trim()
+    : raw.slice(startIdx + startMarker.length).trim();
+  return { summary, prDesc: prDesc || null };
+}
+
 function pickRunner(provider: string) {
   switch (provider) {
     case 'claude-cli': return runCliReviewerAgent;
@@ -187,10 +200,17 @@ class SessionManager {
         if (notes.length > 0) agentResponses = notes.join('\n');
       }
 
-      const summaryText = await runManagerAgent(session, clusters, allFindings, findingOwners, onEvent, agentResponses);
+      const rawOutput = await runManagerAgent(session, clusters, allFindings, findingOwners, onEvent, agentResponses);
+
+      const { summary: summaryText, prDesc } = splitManagerOutput(rawOutput);
 
       const summaryPath = await resolveSessionPath(sessionId, 'summary.md');
       await fs.writeFile(summaryPath, summaryText, 'utf-8');
+
+      if (prDesc) {
+        const prDescPath = await resolveSessionPath(sessionId, 'pr-desc.md');
+        await fs.writeFile(prDescPath, prDesc, 'utf-8');
+      }
       await onEvent({
         type: 'meeting.summary',
         at: new Date().toISOString(),
@@ -334,77 +354,12 @@ class SessionManager {
   }
 
   async generatePrDesc(sessionId: string): Promise<string> {
-    const session = await sessionsStore.read(sessionId);
-    if (!session) throw new Error(`Session not found: ${sessionId}`);
-
-    const findings = await findingsStore.read(sessionId);
-    const summary = await this.getSummary(sessionId);
-
-    const { spawn } = await import('child_process');
-
-    const findingsList = findings
-      .map((f) => `- [${f.severity}] ${f.title}: ${f.summary}`)
-      .join('\n');
-
-    const prompt = [
-      'Generate a PR description based on this code review.',
-      '',
-      summary ? `Review summary:\n${summary}\n` : '',
-      findings.length > 0 ? `Findings:\n${findingsList}\n` : '',
-      'Write a concise PR description in markdown with:',
-      '## Summary',
-      'One paragraph describing what this PR does.',
-      '',
-      '## Changes',
-      'Bullet list of key changes.',
-      '',
-      '## Review Notes',
-      'Key findings from the review that should be addressed or were addressed.',
-      '',
-      'Keep it practical — this will be pasted into a GitHub PR.',
-    ].filter(Boolean).join('\n');
-
-    const provider = session.manager.provider;
-    const model = session.manager.model;
-    let executable: string;
-    let cliArgs: string[];
-
-    if (provider === 'codex-cli') {
-      executable = 'codex';
-      cliArgs = ['exec', prompt, ...(model && model !== 'default' ? ['-m', model] : []), '--json'];
-    } else if (provider === 'gemini-cli') {
-      executable = 'gemini';
-      cliArgs = ['-p', prompt, '--output-format', 'json', '-m', model || 'gemini-2.5-flash'];
-    } else {
-      executable = 'claude';
-      cliArgs = ['-p', prompt, '--output-format', 'json', '--no-session-persistence', '--model', model || 'sonnet'];
+    try {
+      const prDescPath = await resolveSessionPath(sessionId, 'pr-desc.md');
+      return await fs.readFile(prDescPath, 'utf-8');
+    } catch {
+      return 'PR description not available. The manager may not have generated one for this session.';
     }
-
-    return new Promise<string>((resolve, reject) => {
-      const proc = spawn(executable, cliArgs, {
-        cwd: session.repoPath,
-        stdio: ['ignore', 'pipe', 'pipe'],
-      });
-      let stdout = '';
-      const timeout = setTimeout(() => { proc.kill('SIGTERM'); reject(new Error('PR desc generation timed out')); }, 3 * 60 * 1000);
-      proc.stdout.on('data', (chunk: Buffer) => { stdout += chunk.toString(); });
-      proc.on('close', (code) => {
-        clearTimeout(timeout);
-        const raw = stdout.trim();
-        if (code !== 0 && !raw) { reject(new Error(`PR desc failed with code ${code}`)); return; }
-        try {
-          const envelope = JSON.parse(raw);
-          const text = envelope.result ?? envelope.response ?? envelope.item?.text;
-          if (text) { resolve(typeof text === 'string' ? text : JSON.stringify(text)); return; }
-        } catch { /* not JSON */ }
-        const lines = raw.split('\n').filter(Boolean);
-        for (let i = lines.length - 1; i >= 0; i--) {
-          try { const e = JSON.parse(lines[i]); if (e.result) { resolve(String(e.result)); return; } if (e.item?.text) { resolve(e.item.text); return; } } catch { /* skip */ }
-        }
-        resolve(raw || 'Could not generate PR description.');
-      });
-      proc.on('error', (err) => { clearTimeout(timeout); reject(err); });
-    });
   }
 
   async stop(sessionId: string): Promise<void> {

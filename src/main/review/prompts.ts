@@ -80,6 +80,10 @@ export function buildManagerSystemPrompt(hasFindings: boolean, customPrompt?: st
       : '- Produce a concise markdown summary consolidating all agent perspectives.',
     '',
     'Every claim must reference at least one finding. Do not introduce new issues.',
+    '',
+    'After your summary, add a section starting with exactly "---PR_DESC_START---" on its own line,',
+    'followed by a recommended PR description in markdown (## Summary, ## Changes, ## Review Notes),',
+    'then "---PR_DESC_END---" on its own line. This will be extracted separately.',
   ].join('\n');
 }
 
