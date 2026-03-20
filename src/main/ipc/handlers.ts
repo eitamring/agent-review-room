@@ -1,11 +1,20 @@
 import fs from 'fs/promises';
-import { ipcMain, dialog } from 'electron';
+import os from 'os';
+import { ipcMain, dialog, app } from 'electron';
 import { IPC_CHANNELS } from './channels';
 import { sessionManager } from '../review/session-manager';
 import { eventLog } from '../storage/event-log';
 import { findingsStore } from '../storage/findings';
 import { loadConfig, reloadConfig } from '../config';
+import { assertWithinDirectory } from '../security/path-guard';
 import type { CreateSessionParams } from '../review/session-manager';
+
+export function sanitizePromptInput(s: string): string {
+  return s
+    .replace(/\x00/g, '')
+    .replace(/\x1b\[[0-9;]*[A-Za-z]/g, '')
+    .replace(/[\x01-\x08\x0b\x0c\x0e-\x1f]/g, '');
+}
 
 let handlersRegistered = false;
 
@@ -48,6 +57,18 @@ export function registerIpcHandlers(): void {
         if (!r.skillFilePath.endsWith('.md')) {
           throw new Error(`skillFilePath must be a .md file: ${r.skillFilePath}`);
         }
+        const allowedRoots = [process.cwd(), os.homedir(), app.getPath('userData')];
+        let withinAllowed = false;
+        for (const root of allowedRoots) {
+          try {
+            await assertWithinDirectory(root, r.skillFilePath);
+            withinAllowed = true;
+            break;
+          } catch { /* not within this root */ }
+        }
+        if (!withinAllowed) {
+          throw new Error(`skillFilePath must be within the app, home, or userData directory: ${r.skillFilePath}`);
+        }
         try {
           const stat = await fs.stat(r.skillFilePath);
           if (stat.size > 50 * 1024) {
@@ -61,13 +82,23 @@ export function registerIpcHandlers(): void {
         }
       }
       if (r.role === 'custom') {
-        if (r.customRoleTitle && r.customRoleTitle.length > 100) {
-          throw new Error('customRoleTitle must be 100 characters or fewer');
+        if (r.customRoleTitle) {
+          r.customRoleTitle = sanitizePromptInput(r.customRoleTitle);
+          if (r.customRoleTitle.length > 100) {
+            throw new Error('customRoleTitle must be 100 characters or fewer');
+          }
         }
-        if (r.customRoleDesc && r.customRoleDesc.length > 5000) {
-          throw new Error('customRoleDesc must be 5000 characters or fewer');
+        if (r.customRoleDesc) {
+          r.customRoleDesc = sanitizePromptInput(r.customRoleDesc);
+          if (r.customRoleDesc.length > 5000) {
+            throw new Error('customRoleDesc must be 5000 characters or fewer');
+          }
         }
       }
+    }
+
+    if (params.customPrompt) {
+      params.customPrompt = sanitizePromptInput(params.customPrompt);
     }
 
     return sessionManager.create(params);
@@ -138,11 +169,11 @@ export function registerIpcHandlers(): void {
     if (!withinDir(resolved, homeDir) && !withinDir(resolved, appData)) return [];
 
     try {
-      const entries = await fsP.readdir(normalized, { withFileTypes: true });
+      const entries = await fsP.readdir(resolved, { withFileTypes: true });
       const skills: Array<{ name: string; path: string; content: string }> = [];
       for (const entry of entries) {
         if (entry.isFile() && entry.name.endsWith('.md')) {
-          const fullPath = pathM.join(dirPath, entry.name);
+          const fullPath = pathM.join(resolved, entry.name);
           const content = await fsP.readFile(fullPath, 'utf-8');
           skills.push({
             name: entry.name.replace(/\.md$/, ''),

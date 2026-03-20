@@ -7,7 +7,7 @@
 - **Node.js 20+**
 - At least one AI CLI installed and authenticated:
   - [Claude CLI](https://docs.anthropic.com/en/docs/claude-code) (`claude`)
-  - [Codex CLI](https://github.com/openai/codex) (`codex`)
+  - [Codex CLI](https://www.npmjs.com/package/@openai/codex) (`codex`)
   - [Gemini CLI](https://github.com/google-gemini/gemini-cli) (`gemini`)
 
 ### Installation
@@ -50,10 +50,12 @@ This app runs AI agents that can READ files on your machine. Each agent runs in 
 | Provider | Models |
 |----------|--------|
 | Claude | Sonnet, Opus, Haiku |
-| Codex | Default, o3-mini, o3, GPT-4.1, GPT-4.1 mini |
+| Codex | Default |
 | Gemini | 2.5 Flash, 2.5 Pro, 2.0 Flash |
 
 Codex uses "Default" as its first model option, which omits the `-m` flag and lets the CLI pick its default.
+
+**Gemini concurrency:** Gemini CLI uses a Docker-based sandbox (`--sandbox`), which limits it to 1 concurrent reviewer. If you configure multiple Gemini reviewers, they run sequentially rather than in parallel.
 
 ### Installing Each CLI
 
@@ -105,11 +107,7 @@ The app loads configuration in this order:
       "name": "Codex",
       "cli": "codex",
       "models": [
-        { "id": "default", "label": "Default" },
-        { "id": "o3-mini", "label": "o3-mini" },
-        { "id": "o3", "label": "o3" },
-        { "id": "gpt-4.1", "label": "GPT-4.1" },
-        { "id": "gpt-4.1-mini", "label": "GPT-4.1 mini" }
+        { "id": "default", "label": "Default" }
       ]
     },
     {
@@ -178,7 +176,7 @@ Press **Start Review** (or `Ctrl+Enter`). Requirements:
 - At least one reviewer with a model
 - If using git-range, both base and head refs selected
 
-The app launches all reviewer agents concurrently (up to 3 at a time) and transitions to the Live Review screen.
+The app launches all reviewer agents concurrently (up to 3 at a time; Gemini is limited to 1 concurrent reviewer due to its Docker-based sandbox) and transitions to the Live Review screen.
 
 **Single-reviewer sessions** skip the manager agent by design. The reviewer's output becomes the summary directly, saving tokens and avoiding redundant synthesis. PR description extraction still applies.
 

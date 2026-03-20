@@ -134,7 +134,7 @@ class GeminiChatSession implements IChatSession {
   async start(systemPrompt: string, firstMessage: string): Promise<string> {
     const prompt = `IMPORTANT: You are in READ-ONLY mode. Do NOT write or modify files.\n\n${systemPrompt}\n\n${firstMessage}`;
     const raw = await runCli('gemini', [
-      '-p', '--output-format', 'json', '-m', this.model || 'gemini-2.5-flash', '--', prompt,
+      '-p', prompt, '--output-format', 'json', '-m', this.model || 'gemini-2.5-flash',
     ], this.cwd);
     try {
       const envelope = JSON.parse(raw);
@@ -144,9 +144,8 @@ class GeminiChatSession implements IChatSession {
   }
 
   async continue(message: string): Promise<string> {
-    const args = ['-p', '--output-format', 'json', '-m', this.model || 'gemini-2.5-flash'];
+    const args = ['-p', message, '--output-format', 'json', '-m', this.model || 'gemini-2.5-flash'];
     if (this.sessionIndex) args.push('--resume', this.sessionIndex);
-    args.push('--', message);
     const raw = await runCli('gemini', args, this.cwd);
     return this.parseResponse(raw);
   }

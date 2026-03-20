@@ -11,7 +11,7 @@ npm run dev
 
 Requires at least one supported CLI installed and authenticated:
 - [Claude CLI](https://docs.anthropic.com/en/docs/claude-code) (`claude`)
-- [Codex CLI](https://github.com/openai/codex) (`codex`)
+- [Codex CLI](https://www.npmjs.com/package/@openai/codex) (`codex`)
 - [Gemini CLI](https://github.com/google-gemini/gemini-cli) (`gemini`)
 
 No API keys are configured in the app -- each CLI manages its own authentication.
@@ -20,7 +20,7 @@ No API keys are configured in the app -- each CLI manages its own authentication
 
 1. **Setup** -- Pick a local git repo, choose a review target (working tree or ref range), write optional instructions, toggle PR format, configure 1-5 reviewer agents. Each agent is selected from a dropdown populated by `.md` skill files in `skills/` (or `~/.config/agent-review-room/skills/`). Built-in agents: security, architecture, regression, test-gap, performance, document-reviewer. Use "Import Agents Folder" to load from any directory, or select "+ custom" for a one-off agent with an inline description.
 
-2. **Live Review** -- Reviewers run concurrently (up to 3 at a time) via their respective CLIs. Watch their activity in real-time: file reads, searches, notes. Robot characters animate in the room scene. If one reviewer fails, the rest continue.
+2. **Live Review** -- Reviewers run concurrently (up to 3 at a time; Gemini limited to 1 due to Docker sandbox) via their respective CLIs. Watch their activity in real-time: file reads, searches, notes. Robot characters animate in the room scene. If one reviewer fails, the rest continue.
 
 3. **Meeting Room** -- Manager consolidates findings. Single-reviewer sessions skip the manager by design -- the reviewer's output becomes the summary directly, saving tokens and avoiding redundant synthesis. Stats bar shows per-reviewer counts, severity breakdown, and unique finding count. Findings list with evidence, collapsible room scene, follow-up prompts to re-engage selected reviewers. Export as Markdown or JSON.
 
