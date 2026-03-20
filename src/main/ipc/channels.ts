@@ -25,6 +25,7 @@ export const IPC_CHANNELS = {
   EXPORT_JSON: 'export:json',
 
   CONFIG_GET: 'config:get',
+  FS_LIST_SKILLS: 'fs:list-skills',
 } as const;
 
 export type IpcChannel = (typeof IPC_CHANNELS)[keyof typeof IPC_CHANNELS];

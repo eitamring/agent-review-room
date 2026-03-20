@@ -20,6 +20,7 @@ const CH = {
   PERMISSION_REQUEST: 'permission:request',
   PERMISSION_RESPOND: 'permission:respond',
   SESSION_CLEAR_ALL: 'session:clear-all',
+  FS_LIST_SKILLS: 'fs:list-skills',
   EXPORT_MARKDOWN: 'export:markdown',
   EXPORT_JSON: 'export:json',
   CONFIG_GET: 'config:get',
@@ -55,6 +56,7 @@ const api: AppApi = {
     pickDirectory: () => ipcRenderer.invoke(CH.FS_PICK_DIRECTORY),
     validateRepo: (repoPath) => ipcRenderer.invoke(CH.FS_VALIDATE_REPO, repoPath),
     getGitRefs: (repoPath) => ipcRenderer.invoke(CH.FS_GET_GIT_REFS, repoPath),
+    listSkills: (dirPath) => ipcRenderer.invoke(CH.FS_LIST_SKILLS, dirPath),
   },
 
   permissions: {

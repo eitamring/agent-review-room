@@ -49,6 +49,7 @@ export type AppApi = {
     pickDirectory(): Promise<string | null>;
     validateRepo(repoPath: string): Promise<{ valid: boolean; error?: string }>;
     getGitRefs(repoPath: string): Promise<string[]>;
+    listSkills(dirPath: string): Promise<Array<{ name: string; path: string; content: string }>>;
   };
   permissions: {
     respond(requestId: string, approved: boolean): Promise<void>;
@@ -66,6 +67,7 @@ export type AppApi = {
         cli: string;
         models: Array<{ id: string; label: string }>;
       }>;
+      skills: Array<{ name: string; path: string; content: string }>;
     }>;
   };
 };

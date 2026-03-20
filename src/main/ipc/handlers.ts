@@ -94,6 +94,29 @@ export function registerIpcHandlers(): void {
     findingsStore.read(sessionId),
   );
 
+  ipcMain.handle(IPC_CHANNELS.FS_LIST_SKILLS, async (_event, dirPath: string) => {
+    const fsP = await import('fs/promises');
+    const pathM = await import('path');
+    try {
+      const entries = await fsP.readdir(dirPath, { withFileTypes: true });
+      const skills: Array<{ name: string; path: string; content: string }> = [];
+      for (const entry of entries) {
+        if (entry.isFile() && entry.name.endsWith('.md')) {
+          const fullPath = pathM.join(dirPath, entry.name);
+          const content = await fsP.readFile(fullPath, 'utf-8');
+          skills.push({
+            name: entry.name.replace(/\.md$/, ''),
+            path: fullPath,
+            content,
+          });
+        }
+      }
+      return skills;
+    } catch {
+      return [];
+    }
+  });
+
   ipcMain.handle(IPC_CHANNELS.FS_PICK_DIRECTORY, async () => {
     const result = await dialog.showOpenDialog({ properties: ['openDirectory'] });
     return result.canceled ? null : result.filePaths[0];

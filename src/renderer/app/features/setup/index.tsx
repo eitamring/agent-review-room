@@ -74,6 +74,7 @@ export function SetupScreen({ onStart, onResumeSession, submitRef }: SetupScreen
   const [prFormat, setPrFormat] = useState(true);
   const [focusChanges, setFocusChanges] = useState(true);
   const [timeoutMin, setTimeoutMin] = useState(10);
+  const [skills, setSkills] = useState<Array<{ name: string; path: string; content: string }>>([]);
   const [reviewers, setReviewers] = useState<ReviewerDraft[]>([
     makeReviewer('security'),
     makeReviewer('architecture'),
@@ -82,7 +83,10 @@ export function SetupScreen({ onStart, onResumeSession, submitRef }: SetupScreen
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
-    window.api.config.get().then((cfg) => setProvidersCfg(cfg.providers));
+    window.api.config.get().then((cfg) => {
+      setProvidersCfg(cfg.providers);
+      if (cfg.skills.length > 0) setSkills(cfg.skills);
+    });
   }, []);
 
   const modelsForProvider = (pid: string) =>
@@ -110,9 +114,16 @@ export function SetupScreen({ onStart, onResumeSession, submitRef }: SetupScreen
     if (picked) { setRepoPath(picked); setRepoError(undefined); }
   }
 
+  function skillForRole(role: string) {
+    return skills.find((s) => s.name === role);
+  }
+
   function addReviewer() {
     const unusedRole = ROLES.find((r) => !reviewers.some((rv) => rv.role === r)) ?? 'security';
-    setReviewers((prev) => [...prev, makeReviewer(unusedRole)]);
+    const skill = skillForRole(unusedRole);
+    const r = makeReviewer(unusedRole);
+    if (skill) { r.role = 'custom'; r.customTitle = skill.name; r.customDesc = skill.content; r.skillFile = skill.path; }
+    setReviewers((prev) => [...prev, r]);
   }
 
   function removeReviewer(id: string) {
@@ -319,7 +330,44 @@ export function SetupScreen({ onStart, onResumeSession, submitRef }: SetupScreen
       </section>
 
       <section className={styles.section}>
-        <h2 className={styles.sectionLabel}>Reviewers</h2>
+        <div className={styles.row} style={{ justifyContent: 'space-between' }}>
+          <h2 className={styles.sectionLabel}>Reviewers</h2>
+          <button type="button" className={styles.ghostBtn} onClick={async () => {
+            const dir = await window.api.fs.pickDirectory();
+            if (dir) {
+              const loaded = await window.api.fs.listSkills(dir);
+              setSkills(loaded);
+            }
+          }}>Load Skills Folder</button>
+        </div>
+        {skills.length > 0 && (
+          <div className={styles.skillChips}>
+            {skills.map((s) => (
+              <button
+                key={s.path}
+                type="button"
+                className={styles.skillChip}
+                onClick={() => {
+                  if (reviewers.length >= 5) return;
+                  const id = String(nextId++);
+                  setReviewers((prev) => [...prev, {
+                    id,
+                    provider: 'claude-cli' as LLMProvider,
+                    model: 'sonnet',
+                    role: 'custom' as ReviewerRole,
+                    customTitle: s.name,
+                    customDesc: s.content,
+                    skillFile: s.path,
+                  }]);
+                }}
+                disabled={reviewers.length >= 5}
+                title={s.content.slice(0, 200)}
+              >
+                + {s.name}
+              </button>
+            ))}
+          </div>
+        )}
         <div className={styles.reviewerList}>
           {reviewers.map((r) => (
             <div key={r.id} className={styles.reviewerCard}>
@@ -340,7 +388,15 @@ export function SetupScreen({ onStart, onResumeSession, submitRef }: SetupScreen
                 <select
                   className={styles.select}
                   value={r.role}
-                  onChange={(e) => updateReviewer(r.id, { role: e.target.value as ReviewerRole })}
+                  onChange={(e) => {
+                    const newRole = e.target.value as ReviewerRole;
+                    const skill = skillForRole(newRole);
+                    if (skill) {
+                      updateReviewer(r.id, { role: 'custom', customTitle: skill.name, customDesc: skill.content, skillFile: skill.path });
+                    } else {
+                      updateReviewer(r.id, { role: newRole, customTitle: '', customDesc: '', skillFile: '' });
+                    }
+                  }}
                   aria-label="Role"
                 >
                   {ROLES.map((role) => <option key={role} value={role}>{role}</option>)}
