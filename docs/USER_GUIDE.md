@@ -155,14 +155,12 @@ The Setup screen has these sections:
 
 5. **Manager** -- Select provider and model for the manager agent. Config-driven dropdowns with custom model ID option.
 
-6. **Reviewers** -- Configure 1 to 5 reviewer agents. Each has:
+6. **Agents** -- Configure 1 to 5 reviewer agents. Each has:
    - **Provider** -- Claude, Codex, or Gemini (config-driven dropdown)
-   - **Role** -- regression, architecture, security, test-gap, performance, or custom
+   - **Agent** -- A dropdown listing all available agents loaded from skill files, plus a **+ custom** option for one-off agents
    - **Model** -- Config-driven dropdown with custom model ID option
-   - When role is "custom", three additional fields appear:
-     - **Custom role title** -- Short name (e.g. "API Design Reviewer")
-     - **Description** -- Instructions for the reviewer
-     - **Skill file path** -- Path to a `.md` file with detailed instructions (must be within the repo)
+   - When **+ custom** is selected, a text area appears where you describe what the agent should focus on
+   - When a skill-file agent is selected, its source file name is shown below the row
 
 ### Choosing Providers and Models
 
@@ -302,11 +300,32 @@ On Linux: `~/.config/agent-review-room/`. On macOS: `~/Library/Application Suppo
 
 ## 8. Customization
 
+### Agent Skill Files
+
+Each reviewer agent is defined by a `.md` skill file that describes what it should focus on. The app loads skills from these locations (first match wins):
+
+1. `~/.config/agent-review-room/skills/` (user skills)
+2. `skills/` in the project root (built-in skills)
+
+Built-in agents: **security**, **architecture**, **regression**, **test-gap**, **performance**, **document-reviewer**.
+
+#### Creating a Custom Agent
+
+1. Create a `.md` file (e.g. `api-design.md`) describing what the agent should review.
+2. Drop it in either skills folder listed above.
+3. Restart the app -- the new agent appears in every reviewer's dropdown.
+
+You can also click **Import Agents Folder** on the Setup screen to load skill files from any directory without restarting.
+
+For a one-off agent that you don't want to save as a file, select **+ custom** from the agent dropdown and type a description inline.
+
 ### Config File
 
-Place a `config.json` at your user config location or project root to customize available models.
+Place a `config.json` at your user config location or project root to customize available providers and models.
 
-The built-in defaults ship with minimal model lists (e.g. Codex only has "Default"). To add specific models, create a config file:
+Config file locations (checked in order):
+1. `~/.config/agent-review-room/config.json` (user)
+2. `config.json` in the project root
 
 ```json
 {
@@ -317,47 +336,11 @@ The built-in defaults ship with minimal model lists (e.g. Codex only has "Defaul
       "cli": "claude",
       "models": [
         { "id": "sonnet", "label": "Sonnet" },
-        { "id": "opus", "label": "Opus" },
-        { "id": "haiku", "label": "Haiku" }
-      ]
-    },
-    {
-      "id": "codex-cli",
-      "name": "Codex",
-      "cli": "codex",
-      "models": [
-        { "id": "default", "label": "Default" },
-        { "id": "o3-mini", "label": "o3-mini" },
-        { "id": "o3", "label": "o3" },
-        { "id": "gpt-4.1", "label": "GPT-4.1" }
-      ]
-    },
-    {
-      "id": "gemini-cli",
-      "name": "Gemini",
-      "cli": "gemini",
-      "models": [
-        { "id": "gemini-2.5-flash", "label": "2.5 Flash" },
-        { "id": "gemini-2.5-pro", "label": "2.5 Pro" }
+        { "id": "opus", "label": "Opus" }
       ]
     }
   ]
 }
 ```
 
-Config file locations (checked in order):
-1. `~/.config/agent-review-room/config.json` (user)
-2. `config.json` in the project root
-
-The provider `id` must be one of: `claude-cli`, `codex-cli`, `gemini-cli`
-
-### Custom Roles and Skill Files
-
-The "custom" reviewer role lets you define specialized reviewers:
-
-1. Create a Markdown file (e.g. `api-design-reviewer.md`) with instructions.
-2. In Setup, set a reviewer's role to "custom."
-3. Enter a title and description.
-4. Set the skill file path to your Markdown file (must be within the repo).
-
-The skill file contents are included in the reviewer's prompt.
+The provider `id` must be one of: `claude-cli`, `codex-cli`, `gemini-cli`. You can also type a custom model ID directly in the Setup screen.

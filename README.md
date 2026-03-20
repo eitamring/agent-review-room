@@ -18,7 +18,7 @@ No API keys are configured in the app -- each CLI manages its own authentication
 
 ## How It Works
 
-1. **Setup** -- Pick a local git repo, choose a review target (working tree or ref range), write optional instructions, toggle PR format, configure 1-5 reviewer agents with roles (security, architecture, regression, test-gap, performance, or custom with skill files).
+1. **Setup** -- Pick a local git repo, choose a review target (working tree or ref range), write optional instructions, toggle PR format, configure 1-5 reviewer agents. Each agent is selected from a dropdown populated by `.md` skill files in `skills/` (or `~/.config/agent-review-room/skills/`). Built-in agents: security, architecture, regression, test-gap, performance, document-reviewer. Use "Import Agents Folder" to load from any directory, or select "+ custom" for a one-off agent with an inline description.
 
 2. **Live Review** -- Reviewers run concurrently (up to 3 at a time) via their respective CLIs. Watch their activity in real-time: file reads, searches, notes. Robot characters animate in the room scene. If one reviewer fails, the rest continue.
 

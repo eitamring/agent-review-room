@@ -16,6 +16,10 @@
 - Codex "Default" model option (omits `-m` flag, lets CLI pick its default)
 - Custom reviewer roles with title, description, skill file paths
 - Skill file path validation against repo boundary
+- Agent skill files: 6 built-in agents (security, architecture, regression, test-gap, performance, document-reviewer) loaded from `skills/` folder
+- Agent dropdown on Setup screen populated from `.md` skill files
+- Import Agents Folder button to load skills from any directory
+- User skills directory (`~/.config/agent-review-room/skills/`)
 - Default review prompt pre-filled + PR format toggle
 - Resilient reviewer execution (one failure doesn't kill the review)
 - Per-reviewer finding attribution in Meeting Room (owner badges)
