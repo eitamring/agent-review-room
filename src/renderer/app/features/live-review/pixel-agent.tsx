@@ -119,10 +119,6 @@ export function PixelAgent({ color: _color, role, state, statusText, label, prov
 
   return (
     <div className={styles.station} aria-label={`${role}: ${statusText}`}>
-      {state === 'blocked' && (
-        <div className={styles.alertBubble} aria-label="Needs permission">!</div>
-      )}
-
       {bubbleText && (
         <div className={styles.speechBubble} title={label || statusText}>
           {bubbleText}

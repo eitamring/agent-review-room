@@ -24,15 +24,16 @@ const PROVIDERS: { value: LLMProvider; label: string }[] = [
   { value: 'gemini-cli', label: 'Gemini' },
 ];
 
-const ROLES: ReviewerRole[] = ['regression', 'architecture', 'security', 'test-gap', 'performance', 'custom'];
-const ROLE_COLORS: Record<ReviewerRole, string> = {
-  regression: '#2980b9',
-  architecture: '#16a085',
+const AGENT_COLORS: Record<string, string> = {
   security: '#c0392b',
+  architecture: '#16a085',
+  regression: '#2980b9',
   'test-gap': '#9b59b6',
   performance: '#e67e22',
-  custom: '#8c8278',
 };
+function agentColor(name: string): string {
+  return AGENT_COLORS[name] ?? `hsl(${[...name].reduce((h, c) => h + c.charCodeAt(0), 0) % 360}, 50%, 45%)`;
+}
 
 let nextId = 1;
 function makeReviewer(role: ReviewerRole = 'security', model = 'sonnet'): ReviewerDraft {
@@ -74,6 +75,7 @@ export function SetupScreen({ onStart, onResumeSession, submitRef }: SetupScreen
   const [prFormat, setPrFormat] = useState(true);
   const [focusChanges, setFocusChanges] = useState(true);
   const [timeoutMin, setTimeoutMin] = useState(10);
+  const [skills, setSkills] = useState<Array<{ name: string; path: string; content: string }>>([]);
   const [reviewers, setReviewers] = useState<ReviewerDraft[]>([
     makeReviewer('security'),
     makeReviewer('architecture'),
@@ -82,7 +84,10 @@ export function SetupScreen({ onStart, onResumeSession, submitRef }: SetupScreen
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
-    window.api.config.get().then((cfg) => setProvidersCfg(cfg.providers));
+    window.api.config.get().then((cfg) => {
+      setProvidersCfg(cfg.providers);
+      if (cfg.skills.length > 0) setSkills(cfg.skills);
+    });
   }, []);
 
   const modelsForProvider = (pid: string) =>
@@ -111,8 +116,17 @@ export function SetupScreen({ onStart, onResumeSession, submitRef }: SetupScreen
   }
 
   function addReviewer() {
-    const unusedRole = ROLES.find((r) => !reviewers.some((rv) => rv.role === r)) ?? 'security';
-    setReviewers((prev) => [...prev, makeReviewer(unusedRole)]);
+    const usedNames = new Set(reviewers.map((rv) => rv.customTitle || rv.role));
+    const nextSkill = skills.find((s) => !usedNames.has(s.name));
+    if (nextSkill) {
+      const id = String(nextId++);
+      setReviewers((prev) => [...prev, {
+        id, provider: 'claude-cli', model: 'sonnet', role: 'custom' as ReviewerRole,
+        customTitle: nextSkill.name, customDesc: nextSkill.content, skillFile: nextSkill.path,
+      }]);
+    } else {
+      setReviewers((prev) => [...prev, makeReviewer('custom' as ReviewerRole)]);
+    }
   }
 
   function removeReviewer(id: string) {
@@ -157,7 +171,7 @@ export function SetupScreen({ onStart, onResumeSession, submitRef }: SetupScreen
         provider: r.provider,
         model: r.model,
         role: r.role,
-        colorToken: ROLE_COLORS[r.role] ?? '#8c8278',
+        colorToken: agentColor(r.customTitle || r.role),
         ...(r.role === 'custom' && r.customTitle ? { customRoleTitle: r.customTitle } : {}),
         ...(r.role === 'custom' && r.customDesc ? { customRoleDesc: r.customDesc } : {}),
         ...(r.skillFile ? { skillFilePath: r.skillFile } : {}),
@@ -319,12 +333,23 @@ export function SetupScreen({ onStart, onResumeSession, submitRef }: SetupScreen
       </section>
 
       <section className={styles.section}>
-        <h2 className={styles.sectionLabel}>Reviewers</h2>
+        <div className={styles.row} style={{ justifyContent: 'space-between' }}>
+          <h2 className={styles.sectionLabel}>Agents</h2>
+          <button type="button" className={styles.ghostBtn} onClick={async () => {
+            const dir = await window.api.fs.pickDirectory();
+            if (dir) {
+              const loaded = await window.api.fs.listSkills(dir);
+              setSkills((prev) => {
+                const existing = new Set(prev.map((s) => s.path));
+                return [...prev, ...loaded.filter((s) => !existing.has(s.path))];
+              });
+            }
+          }}>Import Agents Folder</button>
+        </div>
         <div className={styles.reviewerList}>
           {reviewers.map((r) => (
             <div key={r.id} className={styles.reviewerCard}>
               <div className={styles.reviewerRow}>
-                <span className={styles.dot} style={{ background: ROLE_COLORS[r.role] ?? '#8c8278' }} />
                 <select
                   className={styles.select}
                   value={r.provider}
@@ -338,15 +363,24 @@ export function SetupScreen({ onStart, onResumeSession, submitRef }: SetupScreen
                   {PROVIDERS.map((p) => <option key={p.value} value={p.value}>{p.label}</option>)}
                 </select>
                 <select
-                  className={styles.select}
-                  value={r.role}
-                  onChange={(e) => updateReviewer(r.id, { role: e.target.value as ReviewerRole })}
-                  aria-label="Role"
+                  className={`${styles.select} ${styles.flex1}`}
+                  value={r.customTitle || r.role}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    const skill = skills.find((s) => s.name === val);
+                    if (skill) {
+                      updateReviewer(r.id, { role: 'custom', customTitle: skill.name, customDesc: skill.content, skillFile: skill.path });
+                    } else {
+                      updateReviewer(r.id, { role: val as ReviewerRole, customTitle: '', customDesc: '', skillFile: '' });
+                    }
+                  }}
+                  aria-label="Agent"
                 >
-                  {ROLES.map((role) => <option key={role} value={role}>{role}</option>)}
+                  {skills.map((s) => <option key={s.name} value={s.name}>{s.name}</option>)}
+                  <option value="custom">+ custom</option>
                 </select>
                 <select
-                  className={`${styles.select} ${styles.flex1}`}
+                  className={styles.select}
                   value={modelsForProvider(r.provider).some((m) => m.id === r.model) ? r.model : ''}
                   onChange={(e) => updateReviewer(r.id, { model: e.target.value })}
                   aria-label="Model"
@@ -363,32 +397,19 @@ export function SetupScreen({ onStart, onResumeSession, submitRef }: SetupScreen
                     aria-label="Custom model"
                   />
                 )}
-                <button type="button" className={styles.removeBtn} onClick={() => removeReviewer(r.id)} aria-label="Remove reviewer">✕</button>
+                <button type="button" className={styles.removeBtn} onClick={() => removeReviewer(r.id)} aria-label="Remove">✕</button>
               </div>
-              {r.role === 'custom' && (
-                <div className={styles.customFields}>
-                  <input
-                    className={`${styles.input} ${styles.flex1}`}
-                    value={r.customTitle}
-                    onChange={(e) => updateReviewer(r.id, { customTitle: e.target.value })}
-                    placeholder="Custom role title"
-                    aria-label="Custom role title"
-                  />
-                  <input
-                    className={`${styles.input} ${styles.flex1}`}
-                    value={r.customDesc}
-                    onChange={(e) => updateReviewer(r.id, { customDesc: e.target.value })}
-                    placeholder="Description or paste skill instructions"
-                    aria-label="Custom role description"
-                  />
-                  <input
-                    className={`${styles.input} ${styles.flex1}`}
-                    value={r.skillFile}
-                    onChange={(e) => updateReviewer(r.id, { skillFile: e.target.value })}
-                    placeholder="Path to .md skill file (optional)"
-                    aria-label="Skill file path"
-                  />
-                </div>
+              {r.role === 'custom' && !r.skillFile && (
+                <textarea
+                  className={`${styles.input} ${styles.full} ${styles.textarea}`}
+                  value={r.customDesc}
+                  onChange={(e) => updateReviewer(r.id, { customDesc: e.target.value })}
+                  placeholder="Describe what this agent should focus on..."
+                  rows={2}
+                />
+              )}
+              {r.skillFile && (
+                <span className={styles.skillLabel}>📄 {r.skillFile.split(/[\\/]/).pop()}</span>
               )}
             </div>
           ))}

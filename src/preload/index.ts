@@ -1,5 +1,5 @@
 import { contextBridge, ipcRenderer } from 'electron';
-import type { AppApi, PermissionRequest } from './api';
+import type { AppApi } from './api';
 
 // Channel constants are inlined here to avoid cross-directory require()
 // which can fail under Electron's sandbox mode.
@@ -17,12 +17,14 @@ const CH = {
   FS_PICK_DIRECTORY: 'fs:pick-directory',
   FS_VALIDATE_REPO: 'fs:validate-repo',
   FS_GET_GIT_REFS: 'fs:get-git-refs',
-  PERMISSION_REQUEST: 'permission:request',
-  PERMISSION_RESPOND: 'permission:respond',
   SESSION_CLEAR_ALL: 'session:clear-all',
+  FS_LIST_SKILLS: 'fs:list-skills',
   EXPORT_MARKDOWN: 'export:markdown',
   EXPORT_JSON: 'export:json',
   CONFIG_GET: 'config:get',
+  CHAT_SEND: 'chat:send',
+  CHAT_GET: 'chat:get',
+  CONFIG_RELOAD: 'config:reload',
 } as const;
 
 const api: AppApi = {
@@ -55,17 +57,7 @@ const api: AppApi = {
     pickDirectory: () => ipcRenderer.invoke(CH.FS_PICK_DIRECTORY),
     validateRepo: (repoPath) => ipcRenderer.invoke(CH.FS_VALIDATE_REPO, repoPath),
     getGitRefs: (repoPath) => ipcRenderer.invoke(CH.FS_GET_GIT_REFS, repoPath),
-  },
-
-  permissions: {
-    respond: (requestId, approved) =>
-      ipcRenderer.invoke(CH.PERMISSION_RESPOND, requestId, approved),
-    onRequest: (handler) => {
-      const listener = (_event: Electron.IpcRendererEvent, req: PermissionRequest) =>
-        handler(req);
-      ipcRenderer.on(CH.PERMISSION_REQUEST, listener);
-      return () => ipcRenderer.removeListener(CH.PERMISSION_REQUEST, listener);
-    },
+    listSkills: (dirPath) => ipcRenderer.invoke(CH.FS_LIST_SKILLS, dirPath),
   },
 
   export: {
@@ -73,8 +65,14 @@ const api: AppApi = {
     json: (sessionId) => ipcRenderer.invoke(CH.EXPORT_JSON, sessionId),
   },
 
+  chat: {
+    send: (sessionId, message) => ipcRenderer.invoke(CH.CHAT_SEND, sessionId, message),
+    getHistory: (sessionId) => ipcRenderer.invoke(CH.CHAT_GET, sessionId),
+  },
+
   config: {
     get: () => ipcRenderer.invoke(CH.CONFIG_GET),
+    reload: () => ipcRenderer.invoke(CH.CONFIG_RELOAD),
   },
 };
 

@@ -15,10 +15,17 @@
       "name": "Codex",
       "cli": "codex",
       "models": [
-        { "id": "o3-mini", "label": "o3-mini" },
-        { "id": "o3", "label": "o3" },
-        { "id": "gpt-4.1", "label": "GPT-4.1" },
-        { "id": "gpt-4.1-mini", "label": "GPT-4.1 mini" }
+        { "id": "default", "label": "Default" }
+      ]
+    },
+    {
+      "id": "gemini-cli",
+      "name": "Gemini",
+      "cli": "gemini",
+      "models": [
+        { "id": "gemini-2.5-flash", "label": "2.5 Flash" },
+        { "id": "gemini-2.5-pro", "label": "2.5 Pro" },
+        { "id": "gemini-2.0-flash", "label": "2.0 Flash" }
       ]
     }
   ]

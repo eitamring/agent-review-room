@@ -10,7 +10,6 @@ import type {
 import { sessionsStore } from '../storage/sessions';
 import { eventLog } from '../storage/event-log';
 import { findingsStore } from '../storage/findings';
-import { runReviewerAgent } from './reviewer-agent';
 import { runCliReviewerAgent } from './cli-reviewer-agent';
 import { runCodexReviewerAgent } from './codex-reviewer-agent';
 import { runGeminiReviewerAgent } from './gemini-reviewer-agent';
@@ -19,16 +18,13 @@ import { clusterFindings } from './clustering';
 import { resolveSessionPath } from '../storage/session-paths';
 
 function splitManagerOutput(raw: string): { summary: string; prDesc: string | null } {
-  const startMarker = '---PR_DESC_START---';
-  const endMarker = '---PR_DESC_END---';
-  const startIdx = raw.indexOf(startMarker);
-  if (startIdx < 0) return { summary: raw.trim(), prDesc: null };
-  const endIdx = raw.indexOf(endMarker, startIdx);
-  const summary = raw.slice(0, startIdx).trim();
-  const prDesc = endIdx > startIdx
-    ? raw.slice(startIdx + startMarker.length, endIdx).trim()
-    : raw.slice(startIdx + startMarker.length).trim();
-  return { summary, prDesc: prDesc || null };
+  const marker = /^## Recommended PR Description$/im;
+  const match = raw.match(marker);
+  if (!match || match.index === undefined) return { summary: raw.trim(), prDesc: null };
+  return {
+    summary: raw.slice(0, match.index).trim(),
+    prDesc: raw.slice(match.index + match[0].length).trim() || null,
+  };
 }
 
 function pickRunner(provider: string) {
@@ -36,7 +32,7 @@ function pickRunner(provider: string) {
     case 'claude-cli': return runCliReviewerAgent;
     case 'codex-cli': return runCodexReviewerAgent;
     case 'gemini-cli': return runGeminiReviewerAgent;
-    default: return runReviewerAgent;
+    default: throw new Error(`Unknown provider: ${provider}`);
   }
 }
 
@@ -50,7 +46,6 @@ export type CreateSessionParams = {
 };
 
 const activeControllers = new Map<string, AbortController>();
-const pendingPermissions = new Map<string, (approved: boolean) => void>();
 const runningSessionIds = new Set<string>();
 
 // ── Semaphore for concurrent reviewer control ────────────────────────────────
@@ -130,15 +125,17 @@ class SessionManager {
       session.status = 'running';
       await sessionsStore.write(session);
 
-      // Run reviewers concurrently with semaphore (default: up to 3 at once)
-      const maxConcurrent = Math.min(session.reviewers.length, 3);
-      const sem = new Semaphore(maxConcurrent);
+      const sem = new Semaphore(Math.min(session.reviewers.length, 3));
+      const geminiSem = new Semaphore(1);
       const allFindings: Finding[] = [];
       const findingOwners = new Map<string, string>();
 
       await Promise.all(
         session.reviewers.map(async (reviewer) => {
+          const isGemini = reviewer.provider === 'gemini-cli';
+          if (isGemini) await geminiSem.acquire();
           await sem.acquire();
+          if (controller.signal.aborted) return;
           try {
             const runAgent = pickRunner(reviewer.provider);
             const findings = await runAgent(
@@ -166,6 +163,7 @@ class SessionManager {
             });
           } finally {
             sem.release();
+            if (isGemini) geminiSem.release();
           }
         }),
       );
@@ -187,22 +185,39 @@ class SessionManager {
         });
       }
 
-      let agentResponses: string | undefined;
-      if (allFindings.length === 0) {
+      let summaryText: string;
+      let prDesc: string | null = null;
+
+      if (session.reviewers.length === 1) {
+        // Single reviewer — use their output directly, no manager needed
         const allEvents = await eventLog.read(sessionId);
         const notes = allEvents
           .filter((e): e is Extract<ReviewEvent, { type: 'agent.note' }> => e.type === 'agent.note' && e.agentId !== 'system')
-          .map((e) => {
-            const reviewer = session.reviewers.find((r) => r.id === e.agentId);
-            const label = reviewer ? `${reviewer.role} (${reviewer.provider})` : e.agentId;
-            return `${label}: ${e.note}`;
-          });
-        if (notes.length > 0) agentResponses = notes.join('\n');
+          .map((e) => e.note);
+        const findingsSummary = allFindings.map((f) => `### [${f.severity}] ${f.title}\n${f.summary}\n${f.evidence.map((e) => `- ${e.path ?? ''}${e.line ? ':' + e.line : ''}`).join('\n')}\n**Recommendation:** ${f.recommendation}`).join('\n\n');
+        const rawSingle = findingsSummary || notes.join('\n') || 'No findings.';
+        const singleSplit = splitManagerOutput(rawSingle);
+        summaryText = singleSplit.summary;
+        prDesc = singleSplit.prDesc;
+      } else {
+        let agentResponses: string | undefined;
+        if (allFindings.length === 0) {
+          const allEvents = await eventLog.read(sessionId);
+          const notes = allEvents
+            .filter((e): e is Extract<ReviewEvent, { type: 'agent.note' }> => e.type === 'agent.note' && e.agentId !== 'system')
+            .map((e) => {
+              const reviewer = session.reviewers.find((r) => r.id === e.agentId);
+              const label = reviewer ? `${reviewer.role} (${reviewer.provider})` : e.agentId;
+              return `${label}: ${e.note}`;
+            });
+          if (notes.length > 0) agentResponses = notes.join('\n');
+        }
+
+        const rawOutput = await runManagerAgent(session, clusters, allFindings, findingOwners, onEvent, agentResponses, controller.signal);
+        const split = splitManagerOutput(rawOutput);
+        summaryText = split.summary;
+        prDesc = split.prDesc;
       }
-
-      const rawOutput = await runManagerAgent(session, clusters, allFindings, findingOwners, onEvent, agentResponses);
-
-      const { summary: summaryText, prDesc } = splitManagerOutput(rawOutput);
 
       const summaryPath = await resolveSessionPath(sessionId, 'summary.md');
       await fs.writeFile(summaryPath, summaryText, 'utf-8');
@@ -269,8 +284,8 @@ class SessionManager {
         `Follow-up task: ${prompt}`,
       ].join('\n');
 
-      const maxConcurrent = Math.min(selectedReviewers.length, 3);
-      const sem = new Semaphore(maxConcurrent);
+      const sem = new Semaphore(Math.min(selectedReviewers.length, 3));
+      const geminiSem = new Semaphore(1);
       const newFindings: Finding[] = [];
       const findingOwners = new Map<string, string>();
 
@@ -278,7 +293,10 @@ class SessionManager {
 
       await Promise.all(
         selectedReviewers.map(async (reviewer) => {
+          const isGemini = reviewer.provider === 'gemini-cli';
+          if (isGemini) await geminiSem.acquire();
           await sem.acquire();
+          if (controller.signal.aborted) return;
           try {
             const followUpSession: ReviewSession = {
               ...session,
@@ -293,8 +311,24 @@ class SessionManager {
             );
             for (const f of findings) findingOwners.set(f.id, reviewer.role);
             newFindings.push(...findings);
+          } catch (err) {
+            const msg = err instanceof Error ? err.message : String(err);
+            await onEvent({
+              type: 'agent.note',
+              agentId: reviewer.id,
+              at: new Date().toISOString(),
+              note: `${reviewer.role} reviewer failed: ${msg}`,
+            });
+            await onEvent({
+              type: 'agent.status',
+              agentId: reviewer.id,
+              at: new Date().toISOString(),
+              state: 'done',
+              label: 'failed',
+            });
           } finally {
             sem.release();
+            if (isGemini) geminiSem.release();
           }
         }),
       );
@@ -316,19 +350,22 @@ class SessionManager {
         });
       }
 
-      for (const f of allFindings) {
-        if (!findingOwners.get(f.id)) {
-          const owner = session.reviewers.find((_r) =>
-            existingFindings.some((ef) => ef.id === f.id),
-          );
-          if (owner) findingOwners.set(f.id, owner.role);
-        }
-      }
+      const followUpManagerSession: ReviewSession = {
+        ...session,
+        customPrompt: followUpContext,
+      };
 
-      const summaryText = await runManagerAgent(session, clusters, allFindings, findingOwners, onEvent);
+      const rawOutput = await runManagerAgent(followUpManagerSession, clusters, allFindings, findingOwners, onEvent, undefined, controller.signal);
+      const split = splitManagerOutput(rawOutput);
+      const summaryText = split.summary;
 
       const summaryPath = await resolveSessionPath(sessionId, 'summary.md');
       await fs.writeFile(summaryPath, summaryText, 'utf-8');
+
+      if (split.prDesc) {
+        const prDescPath = await resolveSessionPath(sessionId, 'pr-desc.md');
+        await fs.writeFile(prDescPath, split.prDesc, 'utf-8');
+      }
       await onEvent({
         type: 'meeting.summary',
         at: new Date().toISOString(),
@@ -369,11 +406,6 @@ class SessionManager {
       activeControllers.delete(sessionId);
     }
 
-    for (const [id, resolve] of pendingPermissions) {
-      resolve(false);
-      pendingPermissions.delete(id);
-    }
-
     runningSessionIds.delete(sessionId);
 
     const session = await sessionsStore.read(sessionId);
@@ -392,10 +424,89 @@ class SessionManager {
     }
   }
 
+  async chatWithManager(sessionId: string, message: string): Promise<string> {
+    const session = await sessionsStore.read(sessionId);
+    if (!session) throw new Error(`Session not found: ${sessionId}`);
+
+    const { getOrCreateChatSession } = await import('./chat-session');
+    const chatSession = getOrCreateChatSession(
+      sessionId, session.manager.provider, session.manager.model, session.repoPath,
+    );
+
+    const chatPath = await resolveSessionPath(sessionId, 'chat.jsonl');
+    type ChatMessage = { role: string; content: string; at: string };
+    let history: ChatMessage[] = [];
+    try {
+      const raw = await fs.readFile(chatPath, 'utf-8');
+      history = raw.trim().split('\n').filter(Boolean).map((line) => JSON.parse(line));
+    } catch { /* no history yet */ }
+
+    const isFirstMessage = history.length === 0;
+    let response: string;
+
+    if (isFirstMessage) {
+      const summaryPath = await resolveSessionPath(sessionId, 'summary.md');
+      let summaryText = '';
+      try { summaryText = await fs.readFile(summaryPath, 'utf-8'); } catch { /* no summary */ }
+      const allFindings = await findingsStore.read(sessionId);
+      const findingsContext = allFindings.map((f, i) =>
+        `#${i + 1} [${f.severity}] ${f.title}: ${f.summary}`
+      ).join('\n');
+
+      const systemPrompt = [
+        'You are the review manager for this session.',
+        'Help the user understand the findings, prioritize fixes, and answer questions.',
+        'Be concise and reference specific findings when relevant.',
+        '',
+        'Review summary:', summaryText,
+        '', 'Findings:', findingsContext || 'No findings.',
+      ].join('\n');
+
+      response = await chatSession.start(systemPrompt, message);
+    } else {
+      try {
+        response = await chatSession.continue(message, history);
+      } catch (err) {
+        const { clearChatSession } = await import('./chat-session');
+        clearChatSession(sessionId);
+        response = `Error: ${err instanceof Error ? err.message : String(err)}. Session reset — try again.`;
+      }
+    }
+
+    const userMsg: ChatMessage = { role: 'user', content: message, at: new Date().toISOString() };
+    const assistantMsg: ChatMessage = { role: 'assistant', content: response, at: new Date().toISOString() };
+    history.push(userMsg, assistantMsg);
+
+    if (history.length > 50) {
+      history = history.slice(-50);
+      await fs.writeFile(chatPath, history.map((m) => JSON.stringify(m)).join('\n') + '\n', 'utf-8');
+    } else {
+      await fs.appendFile(chatPath, JSON.stringify(userMsg) + '\n' + JSON.stringify(assistantMsg) + '\n', 'utf-8');
+    }
+
+    return response;
+  }
+
+  async getChatHistory(sessionId: string): Promise<Array<{ role: string; content: string; at: string }>> {
+    const chatPath = await resolveSessionPath(sessionId, 'chat.jsonl');
+    try {
+      const raw = await fs.readFile(chatPath, 'utf-8');
+      const all = raw.trim().split('\n').filter(Boolean).map((line) => JSON.parse(line));
+      return all.slice(-50);
+    } catch {
+      return [];
+    }
+  }
+
   async clearAll(): Promise<void> {
+    const { clearAllChatSessions } = await import('./chat-session');
+    clearAllChatSessions();
     await sessionsStore.clearAll();
   }
 
+  // Trust boundary: repoPath targets any local git repo the user selects.
+  // This is by design — validateRepo confirms it is a valid git repository
+  // before it is used as cwd for child processes.
   async validateRepo(repoPath: string): Promise<{ valid: boolean; error?: string }> {
     const { execFile } = await import('child_process');
     const { promisify } = await import('util');
@@ -424,26 +535,6 @@ class SessionManager {
     }
   }
 
-  async requestPermission(
-    agentId: string,
-    command: string,
-    args: string[],
-    notifyRenderer: (requestId: string, agentId: string, command: string, args: string[]) => void,
-  ): Promise<boolean> {
-    const requestId = crypto.randomUUID();
-    return new Promise<boolean>((resolve) => {
-      pendingPermissions.set(requestId, resolve);
-      notifyRenderer(requestId, agentId, command, args);
-    });
-  }
-
-  resolvePermission(requestId: string, approved: boolean): void {
-    const resolve = pendingPermissions.get(requestId);
-    if (resolve) {
-      pendingPermissions.delete(requestId);
-      resolve(approved);
-    }
-  }
 }
 
 export const sessionManager = new SessionManager();

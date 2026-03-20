@@ -2,27 +2,46 @@
 
 Local-first desktop app for orchestrating multiple LLM reviewers against a local repository. Each reviewer works independently, then a manager consolidates their findings into a final synthesis.
 
+## Prerequisites
+
+- **Node.js 18–22** (LTS recommended). Node 23+ is untested. Check with `node --version`.
+- **npm 9+** (ships with Node 18+)
+- **Git** installed and in PATH
+- At least one supported AI CLI installed and authenticated:
+  - [Claude CLI](https://docs.anthropic.com/en/docs/claude-code) (`claude`) — `npm install -g @anthropic-ai/claude-code`
+  - [Codex CLI](https://www.npmjs.com/package/@openai/codex) (`codex`) — `npm install -g @openai/codex`
+  - [Gemini CLI](https://github.com/google-gemini/gemini-cli) (`gemini`) — `npm install -g @anthropic-ai/gemini-cli`
+- **macOS**: Xcode Command Line Tools (`xcode-select --install`) for Electron native deps
+- **Linux/WSL**: `libnss3 libatk-bridge2.0-0 libgtk-3-0 libgbm1 libasound2` (or `libasound2t64` on Ubuntu 24.04)
+
 ## Quick Start
 
 ```bash
+rm -rf node_modules package-lock.json   # clean slate if switching platforms
 npm install
 npm run dev
 ```
 
-Requires at least one supported CLI installed and authenticated:
-- [Claude CLI](https://docs.anthropic.com/en/docs/claude-code) (`claude`)
-- [Codex CLI](https://github.com/openai/codex) (`codex`)
-- [Gemini CLI](https://github.com/google-gemini/gemini-cli) (`gemini`)
-
 No API keys are configured in the app -- each CLI manages its own authentication.
+The app itself does not run a hosted backend or built-in telemetry service, but review runs are executed through those local third-party CLIs, which may send prompts and repository context to their providers depending on your CLI/auth setup.
+
+## Demo
+
+### Setting The Run
+
+![Setting the run](media/setting-the-run.gif)
+
+### Resume Talk With Manager
+
+![Resume talk with manager](media/resume-talk-with-manager.gif)
 
 ## How It Works
 
-1. **Setup** -- Pick a local git repo, choose a review target (working tree or ref range), write optional instructions, toggle PR format, configure 1-5 reviewer agents with roles (security, architecture, regression, test-gap, performance, or custom with skill files).
+1. **Setup** -- Pick a local git repo, choose a review target (working tree or ref range), write optional instructions, toggle PR format, configure 1-5 reviewer agents. Each agent is selected from a dropdown populated by bundled `.md` skill files (shipped with the app) or `~/.config/agent-review-room/skills/`. Built-in agents: security, architecture, regression, test-gap, performance, document-reviewer. Use "Import Agents Folder" to load from any directory, or select "+ custom" for a one-off agent with an inline description.
 
-2. **Live Review** -- Reviewers run concurrently (up to 3 at a time) via their respective CLIs. Watch their activity in real-time: file reads, searches, notes. Robot characters animate in the room scene. If one reviewer fails, the rest continue.
+2. **Live Review** -- Reviewers run concurrently (up to 3 at a time; Gemini limited to 1 due to Docker sandbox) via their respective CLIs. Watch their activity in real-time: file reads, searches, notes. Robot characters animate in the room scene. If one reviewer fails, the rest continue.
 
-3. **Meeting Room** -- Manager consolidates findings. Stats bar shows per-reviewer counts, severity breakdown, and unique finding count. Findings list with evidence, collapsible room scene, follow-up prompts to re-engage selected reviewers. Export as Markdown or JSON.
+3. **Meeting Room** -- Manager consolidates findings. Single-reviewer sessions skip the manager by design -- the reviewer's output becomes the summary directly, saving tokens and avoiding redundant synthesis. Stats bar shows per-reviewer counts, severity breakdown, and unique finding count. Findings list with evidence, collapsible room scene, follow-up prompts to re-engage selected reviewers. Export as Markdown or JSON.
 
 ## Keyboard Shortcuts
 
@@ -46,8 +65,7 @@ src/
     storage/      File-based persistence (session.json, events.jsonl, findings.json)
     security/     Path guard (realpath-based), command policy (git subcommand allowlist)
     ipc/          IPC channels and handlers (input validation, skill file boundary checks)
-    providers/    Gateway interface (for future API-key providers)
-    config.ts     Config-driven provider/model definitions
+    config.ts     Config-driven provider/model definitions (with cache invalidation via CONFIG_RELOAD)
   preload/        Typed IPC bridge (contextIsolation + sandbox)
   renderer/       React 19 UI
     app/
@@ -62,11 +80,12 @@ src/
 - `contextIsolation: true`, `sandbox: true`, `nodeIntegration: false`
 - CLI providers use restricted git subcommands only: `diff`, `log`, `show`, `status`, `branch`, `tag`, `rev-parse`, `for-each-ref`, `ls-files`, `blame`, `shortlog`
 - Claude CLI uses `--allowedTools Read,Grep,Glob,Bash(git diff:*),Bash(git log:*),Bash(git show:*),...` (specific subcommands, not `git:*`)
-- Codex CLI uses `--sandbox read-only`
-- Gemini CLI uses `--sandbox` and `--approval-mode yolo`
+- Codex CLI uses `--sandbox read-only` for reviewers, manager, and chat
+- Gemini CLI uses `--sandbox` (Docker-based, limited to 1 concurrent reviewer) for reviewers, manager, and chat
 - File tools enforce repo boundary via `fs.realpath` (symlink-safe)
-- Skill file paths validated against repo boundary before session creation
+- Skill file paths validated (must be `.md`, exist on disk, under 50KB) before session creation
 - `read-diff` uses `--no-ext-diff --no-textconv` to prevent external tool execution
+- Claude manager/chat sessions run with an empty `--allowedTools` set, and all agents receive read-only prompt injection instructing them not to write, edit, or modify any files
 - Restrictive CSP in production
 
 ## Provider Model
@@ -77,13 +96,13 @@ The app shells out to locally installed CLI tools. No API keys are needed -- eac
 |----------|-----|-----------|
 | **Claude** | `claude -p` | `--output-format stream-json`, `--allowedTools` (restricted git subcommands) |
 | **Codex** | `codex exec` | `--sandbox read-only`, `--json`, `-o` (output file); no `--output-schema` |
-| **Gemini** | `gemini -p` | `--output-format stream-json`, `--sandbox`, `--approval-mode yolo` |
+| **Gemini** | `gemini -p` | `--output-format stream-json`, `--sandbox` (Docker-based, limited to 1 concurrent) |
 
 Default models: Claude Sonnet, Codex Default, Gemini 2.5 Flash. All models are config-driven and selectable from dropdowns, with an option to type a custom model ID.
 
 ## CI
 
-GitHub Actions runs lint, typecheck, build, and tests on push/PR to main. Tests use Node's built-in test runner (`node --test`).
+GitHub Actions runs lint, typecheck, build, package verification, and tests on push/PR to main. Tests use Node's built-in test runner (`node --test`).
 
 ## Assets
 
@@ -92,5 +111,3 @@ Robot sprites: [Cute Platformer Robot](https://foozlecc.itch.io/cute-platformer-
 ## License
 
 MIT. See `LICENSE`.
-
-See `SPEC.md` for full product specification.

@@ -15,20 +15,22 @@ import path from 'path';
  * will throw ENOENT.  In that case we fall back to lexical resolution: a
  * non-existent path cannot be a symlink, so the lexical check is sufficient.
  */
-export async function assertWithinRepo(
-  repoPath: string,
+export async function assertWithinDirectory(
+  baseDir: string,
   targetPath: string,
 ): Promise<void> {
-  const repoReal = await realOrLexical(repoPath);
+  const baseReal = await realOrLexical(baseDir);
   const targetReal = await realOrLexical(targetPath);
 
-  const rel = path.relative(repoReal, targetReal);
+  const rel = path.relative(baseReal, targetReal);
   if (rel.startsWith('..') || path.isAbsolute(rel)) {
     throw new Error(
-      `Security: path "${targetPath}" escapes the repository boundary at "${repoPath}"`,
+      `Security: path "${targetPath}" escapes the boundary at "${baseDir}"`,
     );
   }
 }
+
+export const assertWithinRepo = assertWithinDirectory;
 
 async function realOrLexical(p: string): Promise<string> {
   try {

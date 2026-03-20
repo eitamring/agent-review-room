@@ -8,6 +8,7 @@ directories:
 
 files:
   - dist/**/*
+  - skills/**/*.md
   - package.json
 
 extraResources:

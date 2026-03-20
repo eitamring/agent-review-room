@@ -1,10 +1,8 @@
-import { useEffect, useRef, useState, useCallback, useDeferredValue } from 'react';
+import { useEffect, useRef, useState, useDeferredValue } from 'react';
 import type { ReviewSession, ReviewEvent, Finding, AgentState } from '../../../../shared/types';
-import type { PermissionRequest } from '../../../../preload/api';
 import { SplitPane } from '../../layout/split-pane';
 import { Badge } from '../../components/badge';
 import { CodeBlock } from '../../components/code-block';
-import { Dialog } from '../../components/dialog';
 import { RoomScene } from './room-scene';
 import styles from './live-review.module.css';
 
@@ -129,7 +127,6 @@ function ReviewerDetail({
 export function LiveReviewScreen({ session, onMeetingRoom }: Props) {
   const [events, setEvents] = useState<ReviewEvent[]>([]);
   const [sessionStatus, setSessionStatus] = useState(session?.status ?? 'queued');
-  const [permissionReq, setPermissionReq] = useState<PermissionRequest | null>(null);
   const [selectedFindingId, setSelectedFindingId] = useState<string | null>(null);
   const [selectedReviewerId, setSelectedReviewerId] = useState<string | null>(null);
   const deferredEvents = useDeferredValue(events);
@@ -149,23 +146,6 @@ export function LiveReviewScreen({ session, onMeetingRoom }: Props) {
     pollRef.current = setInterval(poll, 1200);
     return () => clearInterval(pollRef.current);
   }, [session]);
-
-  useEffect(() => {
-    return window.api.permissions.onRequest((req) => setPermissionReq(req));
-  }, []);
-
-  const respondToPermission = useCallback(
-    (approved: boolean) => {
-      if (!permissionReq) return;
-      window.api.permissions.respond(permissionReq.requestId, approved);
-      setPermissionReq(null);
-    },
-    [permissionReq],
-  );
-
-  const reviewerRole = permissionReq && session
-    ? session.reviewers.find((r) => r.id === permissionReq.agentId)?.role ?? permissionReq.agentId
-    : '';
 
   if (!session) {
     return <div className={styles.empty}><p>No active session. Go to Setup.</p></div>;
@@ -364,36 +344,6 @@ export function LiveReviewScreen({ session, onMeetingRoom }: Props) {
         )}
       </footer>
 
-      <Dialog
-        open={permissionReq !== null}
-        title="Permission Request"
-        onClose={() => respondToPermission(false)}
-      >
-        {permissionReq && (
-          <div className={styles.permissionBody}>
-            <p className={styles.permissionAgent}>
-              <strong>{reviewerRole}</strong> wants to run:
-            </p>
-            <pre className={styles.permissionCommand}>{permissionReq.command} {permissionReq.args.join(' ')}</pre>
-            <div className={styles.permissionActions}>
-              <button
-                type="button"
-                className={styles.denyBtn}
-                onClick={() => respondToPermission(false)}
-              >
-                Deny
-              </button>
-              <button
-                type="button"
-                className={styles.approveBtn}
-                onClick={() => respondToPermission(true)}
-              >
-                Approve
-              </button>
-            </div>
-          </div>
-        )}
-      </Dialog>
     </div>
   );
 }

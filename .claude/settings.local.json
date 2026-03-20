@@ -1,0 +1,29 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm install:*)",
+      "Bash(npx eslint:*)",
+      "Bash(echo \"exit:$?\")",
+      "Bash(echo \"ESLINT_EXIT:$?\")",
+      "Bash(npm run:*)",
+      "Bash(echo \"TC:$?\")",
+      "Bash(echo \"LINT:$?\")",
+      "WebFetch(domain:opengameart.org)",
+      "Bash(echo \"$?\")",
+      "Bash(codex --version)",
+      "Bash(codex --help)",
+      "Bash(codex exec:*)",
+      "Bash(echo \"B:$?\")",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git push:*)",
+      "Bash(python3 -c \"import sys,json; s=json.load\\(sys.stdin\\); [print\\(f''''  {r[\"\"id\"\"]}: {r[\"\"role\"\"]} \\({r[\"\"provider\"\"]}/{r[\"\"model\"\"]}\\)''''\\) for r in s[''''reviewers'''']]\")",
+      "Bash(git checkout:*)",
+      "Bash(git merge:*)",
+      "Bash(npm test:*)",
+      "Bash(gh repo:*)",
+      "Bash(kill 11638 11645 34014 34021 35489 37842)",
+      "Bash(kill -9 11638 11645 34014 34021 35489 37842)"
+    ]
+  }
+}

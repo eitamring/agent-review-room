@@ -16,13 +16,6 @@ export type CreateSessionParams = {
   timeoutMinutes?: number;
 };
 
-export type PermissionRequest = {
-  requestId: string;
-  agentId: string;
-  command: string;
-  args: string[];
-};
-
 export type ExportResult = { success: boolean; filePath?: string; error?: string };
 
 export type AppApi = {
@@ -49,14 +42,15 @@ export type AppApi = {
     pickDirectory(): Promise<string | null>;
     validateRepo(repoPath: string): Promise<{ valid: boolean; error?: string }>;
     getGitRefs(repoPath: string): Promise<string[]>;
-  };
-  permissions: {
-    respond(requestId: string, approved: boolean): Promise<void>;
-    onRequest(handler: (req: PermissionRequest) => void): () => void;
+    listSkills(dirPath: string): Promise<Array<{ name: string; path: string; content: string }>>;
   };
   export: {
     markdown(sessionId: string): Promise<ExportResult>;
     json(sessionId: string): Promise<ExportResult>;
+  };
+  chat: {
+    send(sessionId: string, message: string): Promise<string>;
+    getHistory(sessionId: string): Promise<Array<{ role: string; content: string; at: string }>>;
   };
   config: {
     get(): Promise<{
@@ -66,6 +60,16 @@ export type AppApi = {
         cli: string;
         models: Array<{ id: string; label: string }>;
       }>;
+      skills: Array<{ name: string; path: string; content: string }>;
+    }>;
+    reload(): Promise<{
+      providers: Array<{
+        id: string;
+        name: string;
+        cli: string;
+        models: Array<{ id: string; label: string }>;
+      }>;
+      skills: Array<{ name: string; path: string; content: string }>;
     }>;
   };
 };

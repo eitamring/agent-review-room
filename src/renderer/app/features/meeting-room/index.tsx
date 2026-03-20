@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback, useMemo, startTransition } from 'react';
+import { useEffect, useState, useCallback, useMemo, useRef, startTransition } from 'react';
 import type { ReviewSession, Finding, ReviewEvent } from '../../../../shared/types';
 import { Badge } from '../../components/badge';
 import { MeetingScene } from './meeting-scene';
@@ -18,10 +18,13 @@ export function MeetingRoomScreen({ session, onBack, onNewReview }: Props) {
   const [followUpPrompt, setFollowUpPrompt] = useState('');
   const [selectedReviewers, setSelectedReviewers] = useState<Set<string>>(new Set());
   const [followUpRunning, setFollowUpRunning] = useState(false);
+  const [followUpOpen, setFollowUpOpen] = useState(false);
   const [sceneOpen, setSceneOpen] = useState(true);
-  const [rightTab, setRightTab] = useState<'summary' | 'pr-desc'>('summary');
   const [prDesc, setPrDesc] = useState<string | null>(null);
-  const [prDescLoading, setPrDescLoading] = useState(false);
+  const [chatMessages, setChatMessages] = useState<Array<{ role: string; content: string; at: string }>>([]);
+  const [chatInput, setChatInput] = useState('');
+  const [chatSending, setChatSending] = useState(false);
+  const chatEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!session) return;
@@ -31,10 +34,23 @@ export function MeetingRoomScreen({ session, onBack, onNewReview }: Props) {
   useEffect(() => {
     if (!session) return;
     let stale = false;
+    let pollTimer: ReturnType<typeof setTimeout>;
 
-    window.api.session.get(session.id).then((fresh) => {
-      if (!stale && fresh) setSessionStatus(fresh.status);
-    });
+    const pollStatus = async () => {
+      try {
+        const fresh = await window.api.session.get(session.id);
+        if (stale) return;
+        if (fresh) {
+          setSessionStatus(fresh.status);
+          if (fresh.status !== 'completed' && fresh.status !== 'failed') {
+            pollTimer = setTimeout(pollStatus, 2000);
+          }
+        }
+      } catch {
+        if (!stale) pollTimer = setTimeout(pollStatus, 3000);
+      }
+    };
+    pollStatus();
 
     window.api.findings.get(session.id).then((f) => { if (!stale) setFindings(f); });
 
@@ -55,13 +71,14 @@ export function MeetingRoomScreen({ session, onBack, onNewReview }: Props) {
       if (stale) return;
       if (s) {
         setSummary(s);
+        window.api.review.generatePrDesc(session.id).then((pd) => { if (!stale) setPrDesc(pd); }).catch(() => {});
       } else {
         setTimeout(fetchSummary, 2000);
       }
     };
     fetchSummary();
 
-    return () => { stale = true; };
+    return () => { stale = true; clearTimeout(pollTimer); };
   }, [session]);
 
   const exportMarkdown = useCallback(() => {
@@ -90,6 +107,7 @@ export function MeetingRoomScreen({ session, onBack, onNewReview }: Props) {
         if (stale) return;
         setFindings(updatedFindings);
         if (updatedSummary) setSummary(updatedSummary);
+        window.api.review.generatePrDesc(session.id).then((pd) => { if (!stale) setPrDesc(pd); }).catch(() => {});
       } else if (s && s.status === 'failed') {
         setFollowUpRunning(false);
         setSessionStatus('failed');
@@ -109,6 +127,31 @@ export function MeetingRoomScreen({ session, onBack, onNewReview }: Props) {
     await window.api.review.followUp(session.id, followUpPrompt.trim(), Array.from(selectedReviewers));
     setFollowUpPrompt('');
   }, [session, followUpPrompt, selectedReviewers]);
+
+  useEffect(() => {
+    if (!session) return;
+    window.api.chat.getHistory(session.id).then(setChatMessages).catch(() => {});
+  }, [session]);
+
+  useEffect(() => {
+    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [chatMessages]);
+
+  const sendChat = useCallback(async () => {
+    if (!session || !chatInput.trim() || chatSending) return;
+    const msg = chatInput.trim();
+    setChatInput('');
+    setChatSending(true);
+    setChatMessages((prev) => [...prev, { role: 'user', content: msg, at: new Date().toISOString() }]);
+    try {
+      const response = await window.api.chat.send(session.id, msg);
+      setChatMessages((prev) => [...prev, { role: 'assistant', content: response, at: new Date().toISOString() }]);
+    } catch (err) {
+      setChatMessages((prev) => [...prev, { role: 'assistant', content: `Error: ${err instanceof Error ? err.message : String(err)}`, at: new Date().toISOString() }]);
+    } finally {
+      setChatSending(false);
+    }
+  }, [session, chatInput, chatSending]);
 
   const toggleReviewer = useCallback((id: string) => {
     setSelectedReviewers((prev) => {
@@ -150,6 +193,11 @@ export function MeetingRoomScreen({ session, onBack, onNewReview }: Props) {
           <p className={styles.sub}>{findings.length} findings</p>
         </div>
         <div className={styles.headerActions}>
+          {sessionStatus === 'completed' && (
+            <button type="button" className={styles.followUpHeaderBtn} onClick={() => setFollowUpOpen(true)} disabled={followUpRunning}>
+              {followUpRunning ? 'Running…' : '+ Follow Up'}
+            </button>
+          )}
           <button type="button" className={styles.ghostBtn} onClick={exportMarkdown} disabled={!summary}>Export Markdown</button>
           <button type="button" className={styles.ghostBtn} onClick={exportJSON} disabled={findings.length === 0}>Export JSON</button>
           <button type="button" className={styles.ghostBtn} onClick={onBack}>← Live Review</button>
@@ -192,6 +240,7 @@ export function MeetingRoomScreen({ session, onBack, onNewReview }: Props) {
             manager={session.manager}
             summarySnippet={summary ? summary.slice(0, 60) : ''}
             loading={!summary}
+            managerDrafting={chatSending}
           />
         )}
 
@@ -231,46 +280,19 @@ export function MeetingRoomScreen({ session, onBack, onNewReview }: Props) {
           </section>
 
           <section className={styles.summaryPanel}>
-            <div className={styles.tabBar}>
-              <button
-                type="button"
-                className={`${styles.tab} ${rightTab === 'summary' ? styles.tabActive : ''}`}
-                onClick={() => setRightTab('summary')}
-              >
-                Manager Summary
-              </button>
-              <button
-                type="button"
-                className={`${styles.tab} ${rightTab === 'pr-desc' ? styles.tabActive : ''}`}
-                onClick={() => {
-                  setRightTab('pr-desc');
-                  if (!prDesc && !prDescLoading && session) {
-                    setPrDescLoading(true);
-                    window.api.review.generatePrDesc(session.id)
-                      .then((text) => { setPrDesc(text); setPrDescLoading(false); })
-                      .catch(() => { setPrDesc('Failed to generate PR description.'); setPrDescLoading(false); });
-                  }
-                }}
-              >
-                PR Description
-              </button>
-            </div>
-
-            {rightTab === 'summary' && (
-              summary ? (
-                <div
-                  className={styles.summaryText}
-                  dangerouslySetInnerHTML={{ __html: renderMarkdown(summary) }}
-                />
-              ) : (
-                <p className={styles.muted}>Summary not yet available.</p>
-              )
+            <h2 className={styles.panelTitle}>Manager Summary</h2>
+            {summary ? (
+              <div
+                className={styles.summaryText}
+                dangerouslySetInnerHTML={{ __html: renderMarkdown(summary) }}
+              />
+            ) : (
+              <p className={styles.muted}>Summary not yet available.</p>
             )}
 
-            {rightTab === 'pr-desc' && (
-              prDescLoading ? (
-                <p className={styles.muted}>Generating PR description...</p>
-              ) : prDesc ? (
+            {prDesc && (
+              <details className={styles.prDescDetails}>
+                <summary className={styles.prDescToggle}>Recommended PR Description</summary>
                 <div className={styles.prDescContainer}>
                   <div
                     className={styles.summaryText}
@@ -284,50 +306,81 @@ export function MeetingRoomScreen({ session, onBack, onNewReview }: Props) {
                     Copy to clipboard
                   </button>
                 </div>
-              ) : (
-                <p className={styles.muted}>Click this tab to generate a PR description.</p>
-              )
+              </details>
             )}
           </section>
         </div>
       </div>
 
-      {(sessionStatus === 'completed' || followUpRunning) ? (
-        <div className={styles.followUpSection}>
-          <h2 className={styles.followUpTitle}>Follow Up</h2>
-          <textarea
-            className={styles.followUpTextarea}
-            placeholder="Ask a follow-up question to the reviewers..."
-            value={followUpPrompt}
-            onChange={(e) => setFollowUpPrompt(e.target.value)}
-            disabled={followUpRunning}
-          />
-          <div className={styles.reviewerCheckboxes}>
-            {session.reviewers.map((r) => (
-              <label key={r.id} className={styles.reviewerCheckbox}>
-                <input
-                  type="checkbox"
-                  checked={selectedReviewers.has(r.id)}
-                  onChange={() => toggleReviewer(r.id)}
-                  disabled={followUpRunning}
-                />
-                {r.role}
-              </label>
+      {sessionStatus === 'completed' && summary && (
+        <details className={styles.chatSection}>
+          <summary className={styles.chatToggle}>Consult Manager <span style={{ fontSize: '10px', opacity: 0.6 }}>(Preview — Claude keeps context, Gemini/Codex rebuild last 5 exchanges)</span></summary>
+          <div className={styles.chatMessages}>
+            {chatMessages.map((m, i) => (
+              <div key={i} className={m.role === 'user' ? styles.chatUserMsg : styles.chatAssistantMsg}>
+                {m.content}
+              </div>
             ))}
+            {chatSending && <div className={styles.chatThinking}>Manager is thinking...</div>}
+            <div ref={chatEndRef} />
           </div>
-          <div className={styles.followUpActions}>
-            <button
-              type="button"
-              className={styles.followUpBtn}
-              onClick={sendFollowUp}
-              disabled={followUpRunning || !followUpPrompt.trim() || selectedReviewers.size === 0}
-            >
-              Send Follow Up
+          <div className={styles.chatInput}>
+            <input
+              type="text"
+              placeholder="Ask the manager about the review..."
+              value={chatInput}
+              onChange={(e) => setChatInput(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendChat(); } }}
+              disabled={chatSending}
+            />
+            <button type="button" onClick={sendChat} disabled={chatSending || !chatInput.trim()}>
+              {chatSending ? 'Sending...' : 'Send'}
             </button>
+          </div>
+        </details>
+      )}
+
+      {followUpOpen && (
+        <div className={styles.followUpOverlay} onClick={() => !followUpRunning && setFollowUpOpen(false)}>
+          <div className={styles.followUpDialog} onClick={(e) => e.stopPropagation()}>
+            <h2 className={styles.followUpTitle}>Follow Up Review</h2>
+            <textarea
+              className={styles.followUpTextarea}
+              placeholder="e.g. I fixed all issues, please re-review..."
+              value={followUpPrompt}
+              onChange={(e) => setFollowUpPrompt(e.target.value)}
+              disabled={followUpRunning}
+              rows={4}
+              autoFocus
+            />
+            <div className={styles.reviewerCheckboxes}>
+              {session.reviewers.map((r) => (
+                <label key={r.id} className={styles.reviewerCheckbox}>
+                  <input
+                    type="checkbox"
+                    checked={selectedReviewers.has(r.id)}
+                    onChange={() => toggleReviewer(r.id)}
+                    disabled={followUpRunning}
+                  />
+                  {r.role} ({r.provider})
+                </label>
+              ))}
+            </div>
+            <div className={styles.followUpActions}>
+              <button type="button" className={styles.ghostBtn} onClick={() => setFollowUpOpen(false)} disabled={followUpRunning}>Cancel</button>
+              <button
+                type="button"
+                className={styles.followUpBtn}
+                onClick={() => { sendFollowUp(); setFollowUpOpen(false); }}
+                disabled={followUpRunning || !followUpPrompt.trim() || selectedReviewers.size === 0}
+              >
+                Send Follow Up
+              </button>
+            </div>
             {followUpRunning && <span className={styles.followUpStatus}>Processing follow-up...</span>}
           </div>
         </div>
-      ) : null}
+      )}
     </div>
   );
 }

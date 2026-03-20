@@ -4,33 +4,41 @@
 
 ### Prerequisites
 
-- **Node.js 20+**
+- **Node.js 18–22** (LTS recommended, Node 23+ untested)
+- **npm 9+**
+- **Git** installed and in PATH
 - At least one AI CLI installed and authenticated:
-  - [Claude CLI](https://docs.anthropic.com/en/docs/claude-code) (`claude`)
-  - [Codex CLI](https://github.com/openai/codex) (`codex`)
-  - [Gemini CLI](https://github.com/google-gemini/gemini-cli) (`gemini`)
+  - [Claude CLI](https://docs.anthropic.com/en/docs/claude-code) — `npm install -g @anthropic-ai/claude-code`
+  - [Codex CLI](https://www.npmjs.com/package/@openai/codex) — `npm install -g @openai/codex`
+  - [Gemini CLI](https://github.com/google-gemini/gemini-cli) — `npm install -g @anthropic-ai/gemini-cli`
+- **macOS**: Xcode Command Line Tools — `xcode-select --install`
+- **Linux/WSL**: system libraries — `sudo apt install libnss3 libatk-bridge2.0-0 libgtk-3-0 libgbm1 libasound2`
+
+**Troubleshooting**: If switching between platforms (e.g. Mac ↔ WSL), delete `node_modules` and `package-lock.json` before `npm install`.
 
 ### Installation
 
 ```bash
-git clone <repo-url>
+git clone <repo-url> 
 cd agent-review-room
 npm install
 npm run dev
 ```
 
 The app opens as a desktop window. No cloud backend, no account creation.
+The app itself does not run a hosted backend or built-in telemetry service, but review runs are executed through your locally installed third-party CLIs, which may send prompts and repository context to their providers depending on your CLI/auth setup.
 
 ### Security Note
 
-This app runs AI agents that can READ files on your machine. Each agent runs in a sandboxed/read-only mode.
+This app runs AI agents that can READ files on your machine. Reviewer, manager, and chat sessions use provider-specific sandboxing where supported (Claude: empty `--allowedTools`, Codex: `--sandbox read-only`, Gemini: `--sandbox` Docker) plus a READ-ONLY system prompt.
 
 - Claude CLI uses `--allowedTools` restricted to Read, Grep, Glob, and specific git subcommands (diff, log, show, status, blame, ls-files). Not `git:*`.
-- Codex CLI uses `--sandbox read-only`.
-- Gemini CLI uses `--sandbox` with `--approval-mode yolo`.
+- Codex CLI uses `--sandbox read-only` for reviewer, manager, and chat flows.
+- Gemini CLI uses `--sandbox` (Docker-based, limited to 1 concurrent reviewer) for reviewer, manager, and chat flows.
 - All file access is restricted to the repository you select. Path traversal and symlink escapes are blocked via `fs.realpath`.
-- Skill file paths are validated against the repo boundary before session creation.
+- Skill file paths are validated (must be `.md`, exist on disk, under 50KB) before session creation.
 - `read-diff` uses `--no-ext-diff --no-textconv` to prevent external tool execution.
+- Claude manager/chat sessions use an empty `--allowedTools` set, and all agents receive a read-only prompt injection instructing them not to write, edit, or modify any files.
 
 ---
 
@@ -49,10 +57,12 @@ This app runs AI agents that can READ files on your machine. Each agent runs in 
 | Provider | Models |
 |----------|--------|
 | Claude | Sonnet, Opus, Haiku |
-| Codex | Default, o3-mini, o3, GPT-4.1, GPT-4.1 mini |
+| Codex | Default |
 | Gemini | 2.5 Flash, 2.5 Pro, 2.0 Flash |
 
 Codex uses "Default" as its first model option, which omits the `-m` flag and lets the CLI pick its default.
+
+**Gemini concurrency:** Gemini CLI uses a Docker-based sandbox (`--sandbox`), which limits it to 1 concurrent reviewer. If you configure multiple Gemini reviewers, they run sequentially rather than in parallel.
 
 ### Installing Each CLI
 
@@ -104,11 +114,7 @@ The app loads configuration in this order:
       "name": "Codex",
       "cli": "codex",
       "models": [
-        { "id": "default", "label": "Default" },
-        { "id": "o3-mini", "label": "o3-mini" },
-        { "id": "o3", "label": "o3" },
-        { "id": "gpt-4.1", "label": "GPT-4.1" },
-        { "id": "gpt-4.1-mini", "label": "GPT-4.1 mini" }
+        { "id": "default", "label": "Default" }
       ]
     },
     {
@@ -151,18 +157,16 @@ The Setup screen has these sections:
    - **Working tree** -- Reviews uncommitted changes (`git diff` and `git diff --staged`).
    - **Git ref range** -- Reviews changes between two refs. Dropdowns are populated from local branches and tags.
 
-4. **Review Instructions** -- Free-text prompt sent to all reviewers. Pre-filled with a default review prompt. A **PR format** checkbox appends instructions to format the manager summary as a PR review with issues, suggested fixes, and a verdict.
+4. **Review Instructions** -- Free-text prompt sent to all reviewers. Pre-filled with a default review prompt. When a custom prompt is provided, it becomes the primary instruction. The review target (working tree, git range) is only included when using the default prompt. A **PR format** checkbox appends instructions to format the manager summary as a PR review with issues, suggested fixes, and a verdict. A **Focus on changes only** toggle restricts reviewers to only the diff (ignoring surrounding code). A **Timeout** field lets you set the per-reviewer timeout in minutes.
 
 5. **Manager** -- Select provider and model for the manager agent. Config-driven dropdowns with custom model ID option.
 
-6. **Reviewers** -- Configure 1 to 5 reviewer agents. Each has:
+6. **Agents** -- Configure 1 to 5 reviewer agents. Each has:
    - **Provider** -- Claude, Codex, or Gemini (config-driven dropdown)
-   - **Role** -- regression, architecture, security, test-gap, performance, or custom
+   - **Agent** -- A dropdown listing all available agents loaded from skill files, plus a **+ custom** option for one-off agents
    - **Model** -- Config-driven dropdown with custom model ID option
-   - When role is "custom", three additional fields appear:
-     - **Custom role title** -- Short name (e.g. "API Design Reviewer")
-     - **Description** -- Instructions for the reviewer
-     - **Skill file path** -- Path to a `.md` file with detailed instructions (must be within the repo)
+   - When **+ custom** is selected, a text area appears where you describe what the agent should focus on
+   - When a skill-file agent is selected, its source file name is shown below the row
 
 ### Choosing Providers and Models
 
@@ -179,7 +183,9 @@ Press **Start Review** (or `Ctrl+Enter`). Requirements:
 - At least one reviewer with a model
 - If using git-range, both base and head refs selected
 
-The app launches all reviewer agents concurrently (up to 3 at a time) and transitions to the Live Review screen.
+The app launches all reviewer agents concurrently (up to 3 at a time; Gemini is limited to 1 concurrent reviewer due to its Docker-based sandbox) and transitions to the Live Review screen.
+
+**Single-reviewer sessions** skip the manager agent by design. The reviewer's output becomes the summary directly, saving tokens and avoiding redundant synthesis. Single-reviewer sessions skip the manager to save tokens. PR descriptions are only generated when the manager runs (2+ reviewers).
 
 ---
 
@@ -197,8 +203,6 @@ Lists all configured reviewers with:
 ### Center Pane: Room Scene and Activity Feed
 
 **Robot Characters** -- Each reviewer is represented by an animated pixel-art robot. Robots animate based on state (walking when active, still when done) and show speech bubbles with current activity.
-
-**The "!" Alert** -- A red "!" bubble means the agent is blocked and needs permission. A dialog shows the exact command for you to approve or deny.
 
 **Activity Feed** -- Real-time event log showing agent states: planning, reading, searching, comparing, drafting, blocked, done. Findings and errors are highlighted.
 
@@ -245,12 +249,20 @@ The right panel displays the manager's consolidated summary rendered as Markdown
 
 ### Follow-Up Prompts
 
-After a review completes, a follow-up section appears at the bottom:
+After a review completes, a **+ Follow Up** button appears in the header. Clicking it opens a dialog where you:
 1. Type a follow-up question (e.g. "Look deeper at the auth token handling")
 2. Select which reviewers should handle it via checkboxes
 3. Press **Send Follow Up**
 
 The follow-up runs with context from the original review (existing finding titles). The manager produces a new summary that includes both original and follow-up findings.
+
+### PR Description
+
+When the review completes, a collapsible **Recommended PR Description** section appears below the manager summary. It contains a generated PR description based on the review findings, with a **Copy to clipboard** button.
+
+### Consult Manager
+
+A collapsible **Consult Manager** chat section appears below the findings and summary. Use it to ask the manager follow-up questions about the review, prioritize fixes, or get clarification on specific findings. The manager has full context of the review summary and all findings.
 
 ### Export
 
@@ -302,11 +314,33 @@ On Linux: `~/.config/agent-review-room/`. On macOS: `~/Library/Application Suppo
 
 ## 8. Customization
 
+### Agent Skill Files
+
+Each reviewer agent is defined by a `.md` skill file that describes what it should focus on. The app loads skills from these locations (first match wins):
+
+1. `~/.config/agent-review-room/skills/` (user skills)
+2. Bundled app `skills/` directory (built-in skills)
+3. `skills/` in the project root when running from source
+
+Built-in agents: **security**, **architecture**, **regression**, **test-gap**, **performance**, **document-reviewer**.
+
+#### Creating a Custom Agent
+
+1. Create a `.md` file (e.g. `api-design.md`) describing what the agent should review.
+2. Drop it in either skills folder listed above.
+3. Restart the app -- the new agent appears in every reviewer's dropdown.
+
+You can also click **Import Agents Folder** on the Setup screen to load skill files from any directory without restarting. Imported skill files must be `.md`, under 50KB, and within the user's home directory or app data directory.
+
+For a one-off agent that you don't want to save as a file, select **+ custom** from the agent dropdown and type a description inline.
+
 ### Config File
 
-Place a `config.json` at your user config location or project root to customize available models.
+Place a `config.json` at your user config location or project root to customize available providers and models.
 
-The built-in defaults ship with minimal model lists (e.g. Codex only has "Default"). To add specific models, create a config file:
+Config file locations (checked in order):
+1. `~/.config/agent-review-room/config.json` (user)
+2. `config.json` in the project root
 
 ```json
 {
@@ -317,47 +351,11 @@ The built-in defaults ship with minimal model lists (e.g. Codex only has "Defaul
       "cli": "claude",
       "models": [
         { "id": "sonnet", "label": "Sonnet" },
-        { "id": "opus", "label": "Opus" },
-        { "id": "haiku", "label": "Haiku" }
-      ]
-    },
-    {
-      "id": "codex-cli",
-      "name": "Codex",
-      "cli": "codex",
-      "models": [
-        { "id": "default", "label": "Default" },
-        { "id": "o3-mini", "label": "o3-mini" },
-        { "id": "o3", "label": "o3" },
-        { "id": "gpt-4.1", "label": "GPT-4.1" }
-      ]
-    },
-    {
-      "id": "gemini-cli",
-      "name": "Gemini",
-      "cli": "gemini",
-      "models": [
-        { "id": "gemini-2.5-flash", "label": "2.5 Flash" },
-        { "id": "gemini-2.5-pro", "label": "2.5 Pro" }
+        { "id": "opus", "label": "Opus" }
       ]
     }
   ]
 }
 ```
 
-Config file locations (checked in order):
-1. `~/.config/agent-review-room/config.json` (user)
-2. `config.json` in the project root
-
-The provider `id` must be one of: `claude-cli`, `codex-cli`, `gemini-cli`
-
-### Custom Roles and Skill Files
-
-The "custom" reviewer role lets you define specialized reviewers:
-
-1. Create a Markdown file (e.g. `api-design-reviewer.md`) with instructions.
-2. In Setup, set a reviewer's role to "custom."
-3. Enter a title and description.
-4. Set the skill file path to your Markdown file (must be within the repo).
-
-The skill file contents are included in the reviewer's prompt.
+The provider `id` must be one of: `claude-cli`, `codex-cli`, `gemini-cli`. You can also type a custom model ID directly in the Setup screen.

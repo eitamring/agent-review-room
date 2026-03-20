@@ -1,6 +1,8 @@
 import { app } from 'electron';
 import { createAppWindow } from './app';
 
+app.disableHardwareAcceleration();
+
 app.whenReady().then(() => {
   createAppWindow();
 

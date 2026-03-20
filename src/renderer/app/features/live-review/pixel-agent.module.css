@@ -7,21 +7,6 @@
   position: relative;
 }
 
-.alertBubble {
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
-  background: #c0392b;
-  color: #fff;
-  font-size: 20px;
-  font-weight: 800;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  line-height: 1;
-  flex-shrink: 0;
-}
-
 .speechBubble {
   position: relative;
   background: #fff;

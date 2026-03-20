@@ -14,6 +14,13 @@ export function getTimeoutMs(session: { timeoutMinutes?: number }): number {
 }
 export const now = () => new Date().toISOString();
 
+export function sanitize(s: string): string {
+  return s
+    .replace(/\x00/g, '')
+    .replace(/\x1b\[[0-9;]*[A-Za-z]/g, '')
+    .replace(/[^\n\t\x20-\x7e\x80-\uffff]/g, '');
+}
+
 export const FINDINGS_JSON_INSTRUCTIONS = `
 When you are done, output ONLY a raw JSON object (no markdown, no code fences, no explanation before or after):
 {"findings":[{"severity":"critical|high|medium|low","title":"...","summary":"...","confidence":"high|medium|low","evidence":[{"kind":"file|diff","path":"...","line":0,"excerpt":"..."}],"recommendation":"..."}]}
@@ -107,10 +114,10 @@ export async function buildPrompt(
       target = 'Review the uncommitted working tree changes (run `git diff` and `git diff --staged`).';
       break;
     case 'git-range':
-      target = `Review changes between ${rt.baseRef} and ${rt.headRef} (run \`git diff ${rt.baseRef}..${rt.headRef}\`).`;
+      target = `Review changes between ${sanitize(rt.baseRef)} and ${sanitize(rt.headRef)} (run \`git diff ${sanitize(rt.baseRef)}..${sanitize(rt.headRef)}\`).`;
       break;
     case 'patch-file':
-      target = `Review the patch file at ${rt.patchPath}.`;
+      target = `Review the patch file at ${sanitize(rt.patchPath)}.`;
       break;
   }
 
@@ -129,7 +136,11 @@ export async function buildPrompt(
   }
 
   if (session.customPrompt) {
-    lines.push(session.customPrompt);
+    lines.push(
+      `You are a ${role} reviewer. Repository: ${session.repoPath}`,
+      '',
+      session.customPrompt,
+    );
   } else {
     lines.push(
       `You are a ${role} code reviewer.`,
@@ -148,6 +159,11 @@ export async function buildPrompt(
       '- Be specific and concise.',
     );
   }
+
+  lines.push(
+    '',
+    'IMPORTANT: You are in READ-ONLY mode. Do NOT attempt to write, edit, or modify any files. Only read and analyze.',
+  );
 
   if (options?.includeJsonInstructions !== false) {
     lines.push('', FINDINGS_JSON_INSTRUCTIONS);
@@ -174,7 +190,7 @@ export function processStreamEvent(
       const short = msg.content.replace(/\s+/g, ' ').trim().slice(0, 150);
       if (short && !short.startsWith('{')) {
         void onEvent({ type: 'agent.note', agentId, at: now(), note: short });
-        void onEvent({ type: 'agent.status', agentId, at: now(), state: 'drafting', label: short });
+        void onEvent({ type: 'agent.status', agentId, at: now(), state: 'reading', label: short });
       }
       return;
     }
@@ -185,7 +201,7 @@ export function processStreamEvent(
         const short = block.text.replace(/\s+/g, ' ').trim().slice(0, 150);
         if (short && !short.startsWith('{')) {
           void onEvent({ type: 'agent.note', agentId, at: now(), note: short });
-          void onEvent({ type: 'agent.status', agentId, at: now(), state: 'drafting', label: short });
+          void onEvent({ type: 'agent.status', agentId, at: now(), state: 'reading', label: short });
         }
       }
       if (block.type === 'tool_use' && block.name) {

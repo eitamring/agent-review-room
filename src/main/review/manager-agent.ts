@@ -13,6 +13,7 @@ export async function runManagerAgent(
   findingOwners: Map<string, string>,
   onEvent: (event: ReviewEvent) => Promise<void>,
   agentResponses?: string,
+  signal?: AbortSignal,
 ): Promise<string> {
   const hasFindings = allFindings.length > 0;
   const findingsText = hasFindings
@@ -37,7 +38,7 @@ export async function runManagerAgent(
     label: 'Synthesising',
   });
 
-  const summaryText = await runViaCli(session, teamContext + (findingsText || responsesText), taskContext, hasFindings);
+  const summaryText = await runViaCli(session, teamContext + (findingsText || responsesText), taskContext, hasFindings, signal);
 
   await onEvent({
     type: 'agent.status',
@@ -50,8 +51,8 @@ export async function runManagerAgent(
   return summaryText;
 }
 
-async function runViaCli(session: ReviewSession, findingsText: string, taskContext: string, hasFindings: boolean): Promise<string> {
-  const systemPrompt = buildManagerSystemPrompt(hasFindings, session.customPrompt);
+async function runViaCli(session: ReviewSession, findingsText: string, taskContext: string, hasFindings: boolean, signal?: AbortSignal): Promise<string> {
+  const systemPrompt = 'You are in READ-ONLY mode. Do NOT write or modify files.\n\n' + buildManagerSystemPrompt(hasFindings, session.customPrompt);
   const prompt = [
     systemPrompt,
     '',
@@ -70,13 +71,13 @@ async function runViaCli(session: ReviewSession, findingsText: string, taskConte
 
   if (provider === 'codex-cli') {
     executable = 'codex';
-    cliArgs = ['exec', prompt, ...(model && model !== 'default' ? ['-m', model] : []), '--json'];
+    cliArgs = ['exec', prompt, ...(model && model !== 'default' ? ['-m', model] : []), '--sandbox', 'read-only', '--json'];
   } else if (provider === 'gemini-cli') {
     executable = 'gemini';
     cliArgs = ['-p', prompt, '--output-format', 'json', '-m', model || 'gemini-2.5-flash', '--sandbox'];
   } else {
     executable = 'claude';
-    cliArgs = ['-p', prompt, '--output-format', 'json', '--no-session-persistence', '--model', model || 'sonnet'];
+    cliArgs = ['-p', prompt, '--output-format', 'json', '--no-session-persistence', '--model', model || 'sonnet', '--allowedTools', ''];
   }
 
   return new Promise<string>((resolve, reject) => {
@@ -87,6 +88,10 @@ async function runViaCli(session: ReviewSession, findingsText: string, taskConte
 
     let stdout = '';
     let collected = 0;
+
+    if (signal) {
+      signal.addEventListener('abort', () => proc.kill('SIGTERM'), { once: true });
+    }
 
     const timeout = setTimeout(() => {
       proc.kill('SIGTERM');

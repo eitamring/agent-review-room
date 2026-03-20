@@ -18,13 +18,15 @@ export const IPC_CHANNELS = {
   FS_VALIDATE_REPO: 'fs:validate-repo',
   FS_GET_GIT_REFS: 'fs:get-git-refs',
 
-  PERMISSION_REQUEST: 'permission:request',
-  PERMISSION_RESPOND: 'permission:respond',
-
   EXPORT_MARKDOWN: 'export:markdown',
   EXPORT_JSON: 'export:json',
 
   CONFIG_GET: 'config:get',
+  CONFIG_RELOAD: 'config:reload',
+  FS_LIST_SKILLS: 'fs:list-skills',
+
+  CHAT_SEND: 'chat:send',
+  CHAT_GET: 'chat:get',
 } as const;
 
 export type IpcChannel = (typeof IPC_CHANNELS)[keyof typeof IPC_CHANNELS];

@@ -2,12 +2,15 @@
 
 ## Next
 
+- Pluggable manager skills (`manager-skills/` folder) -- e.g. flowchart-manager (mermaid diagrams), api-doc-manager, dependency-graph-manager with interactive function inspector
 - Jira / external data integration -- custom hooks to fetch context from Jira, Linear, GitHub Issues before review starts
 - Custom CLI input -- support arbitrary CLI tools as providers
 - Dark theme toggle (tokens defined in `themes.css`)
 - Patch file review target
 - Duplicate finding dedup before meeting
 - Tool hardening: file size limits, binary detection, diff truncation
+- Interface abstractions: IReviewerAgent, IManagerAgent, IStorageBackend
+- True chat context: per-provider native session continuity for all CLIs (currently Claude uses --resume, Gemini/Codex rebuild context from last 5 exchanges)
 
 ## Done
 
@@ -16,6 +19,10 @@
 - Codex "Default" model option (omits `-m` flag, lets CLI pick its default)
 - Custom reviewer roles with title, description, skill file paths
 - Skill file path validation against repo boundary
+- Agent skill files: 6 built-in agents (security, architecture, regression, test-gap, performance, document-reviewer) loaded from `skills/` folder
+- Agent dropdown on Setup screen populated from `.md` skill files
+- Import Agents Folder button to load skills from any directory
+- User skills directory (`~/.config/agent-review-room/skills/`)
 - Default review prompt pre-filled + PR format toggle
 - Resilient reviewer execution (one failure doesn't kill the review)
 - Per-reviewer finding attribution in Meeting Room (owner badges)
@@ -28,7 +35,6 @@
 - Meeting Room robots with manager presenting summary
 - Manager summary rendered as Markdown (headings, bold, italic, code, lists)
 - Export markdown/JSON via save dialogs
-- Hand-raise permission flow
 - Reviewer/finding detail inspector with code blocks
 - Error banners and highlighted error activity
 - Keyboard shortcuts (1/2/3 screens, Ctrl+E, Ctrl+N, Ctrl+Enter, Escape)
