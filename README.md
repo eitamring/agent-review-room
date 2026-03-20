@@ -2,17 +2,25 @@
 
 Local-first desktop app for orchestrating multiple LLM reviewers against a local repository. Each reviewer works independently, then a manager consolidates their findings into a final synthesis.
 
+## Prerequisites
+
+- **Node.js 18–22** (LTS recommended). Node 23+ is untested. Check with `node --version`.
+- **npm 9+** (ships with Node 18+)
+- **Git** installed and in PATH
+- At least one supported AI CLI installed and authenticated:
+  - [Claude CLI](https://docs.anthropic.com/en/docs/claude-code) (`claude`) — `npm install -g @anthropic-ai/claude-code`
+  - [Codex CLI](https://www.npmjs.com/package/@openai/codex) (`codex`) — `npm install -g @openai/codex`
+  - [Gemini CLI](https://github.com/google-gemini/gemini-cli) (`gemini`) — `npm install -g @anthropic-ai/gemini-cli`
+- **macOS**: Xcode Command Line Tools (`xcode-select --install`) for Electron native deps
+- **Linux/WSL**: `libnss3 libatk-bridge2.0-0 libgtk-3-0 libgbm1 libasound2` (or `libasound2t64` on Ubuntu 24.04)
+
 ## Quick Start
 
 ```bash
+rm -rf node_modules package-lock.json   # clean slate if switching platforms
 npm install
 npm run dev
 ```
-
-Requires at least one supported CLI installed and authenticated:
-- [Claude CLI](https://docs.anthropic.com/en/docs/claude-code) (`claude`)
-- [Codex CLI](https://www.npmjs.com/package/@openai/codex) (`codex`)
-- [Gemini CLI](https://github.com/google-gemini/gemini-cli) (`gemini`)
 
 No API keys are configured in the app -- each CLI manages its own authentication.
 The app itself does not run a hosted backend or built-in telemetry service, but review runs are executed through those local third-party CLIs, which may send prompts and repository context to their providers depending on your CLI/auth setup.

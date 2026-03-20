@@ -4,11 +4,17 @@
 
 ### Prerequisites
 
-- **Node.js 20+**
+- **Node.js 18–22** (LTS recommended, Node 23+ untested)
+- **npm 9+**
+- **Git** installed and in PATH
 - At least one AI CLI installed and authenticated:
-  - [Claude CLI](https://docs.anthropic.com/en/docs/claude-code) (`claude`)
-  - [Codex CLI](https://www.npmjs.com/package/@openai/codex) (`codex`)
-  - [Gemini CLI](https://github.com/google-gemini/gemini-cli) (`gemini`)
+  - [Claude CLI](https://docs.anthropic.com/en/docs/claude-code) — `npm install -g @anthropic-ai/claude-code`
+  - [Codex CLI](https://www.npmjs.com/package/@openai/codex) — `npm install -g @openai/codex`
+  - [Gemini CLI](https://github.com/google-gemini/gemini-cli) — `npm install -g @anthropic-ai/gemini-cli`
+- **macOS**: Xcode Command Line Tools — `xcode-select --install`
+- **Linux/WSL**: system libraries — `sudo apt install libnss3 libatk-bridge2.0-0 libgtk-3-0 libgbm1 libasound2`
+
+**Troubleshooting**: If switching between platforms (e.g. Mac ↔ WSL), delete `node_modules` and `package-lock.json` before `npm install`.
 
 ### Installation
 
