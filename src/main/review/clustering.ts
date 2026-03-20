@@ -43,7 +43,8 @@ function isSameCluster(
   candidate: Finding,
   allFindings: Finding[],
 ): boolean {
-  const clusterMembers = allFindings.filter((f) => cluster.findingIds.includes(f.id));
+  const idSet = new Set(cluster.findingIds);
+  const clusterMembers = allFindings.filter((f) => idSet.has(f.id));
   if (clusterMembers.length === 0) return false;
 
   const hasOverlap = clusterMembers.some(

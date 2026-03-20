@@ -314,7 +314,7 @@ export function MeetingRoomScreen({ session, onBack, onNewReview }: Props) {
 
       {sessionStatus === 'completed' && summary && (
         <details className={styles.chatSection}>
-          <summary className={styles.chatToggle}>Consult Manager</summary>
+          <summary className={styles.chatToggle}>Consult Manager <span style={{ fontSize: '10px', opacity: 0.6 }}>(Preview — Claude keeps context, Gemini/Codex rebuild last 5 exchanges)</span></summary>
           <div className={styles.chatMessages}>
             {chatMessages.map((m, i) => (
               <div key={i} className={m.role === 'user' ? styles.chatUserMsg : styles.chatAssistantMsg}>

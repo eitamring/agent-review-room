@@ -165,7 +165,8 @@ export function registerIpcHandlers(): void {
     const appData = (await import('electron')).app.getPath('userData');
     const withinDir = (dir: string, allowed: string) =>
       dir === allowed || dir.startsWith(allowed + pathM.sep);
-    if (!withinDir(resolved, homeDir) && !withinDir(resolved, appData)) return [];
+    const cwdDir = pathM.resolve(process.cwd());
+    if (!withinDir(resolved, homeDir) && !withinDir(resolved, appData) && !withinDir(resolved, cwdDir)) return [];
 
     try {
       const entries = await fsP.readdir(resolved, { withFileTypes: true });

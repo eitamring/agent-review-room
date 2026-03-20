@@ -136,7 +136,11 @@ export async function buildPrompt(
   }
 
   if (session.customPrompt) {
-    lines.push(session.customPrompt);
+    lines.push(
+      `You are a ${role} reviewer. Repository: ${session.repoPath}`,
+      '',
+      session.customPrompt,
+    );
   } else {
     lines.push(
       `You are a ${role} code reviewer.`,

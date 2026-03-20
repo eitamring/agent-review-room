@@ -10,6 +10,7 @@
 - Duplicate finding dedup before meeting
 - Tool hardening: file size limits, binary detection, diff truncation
 - Interface abstractions: IReviewerAgent, IManagerAgent, IStorageBackend
+- True chat context: per-provider native session continuity for all CLIs (currently Claude uses --resume, Gemini/Codex rebuild context from last 5 exchanges)
 
 ## Done
 

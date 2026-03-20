@@ -1,9 +1,26 @@
 import { spawn } from 'child_process';
 import type { LLMProvider } from '../../shared/types';
 
+export type ChatHistoryEntry = { role: string; content: string };
+
 export interface IChatSession {
   start(systemPrompt: string, firstMessage: string): Promise<string>;
-  continue(message: string): Promise<string>;
+  continue(message: string, history?: ChatHistoryEntry[]): Promise<string>;
+}
+
+function buildContextPrompt(systemPrompt: string, history: ChatHistoryEntry[], newMessage: string): string {
+  const last5 = history.slice(-10);
+  const convo = last5.map((m) => `${m.role === 'user' ? 'User' : 'Manager'}: ${m.content}`).join('\n');
+  return [
+    'IMPORTANT: You are in READ-ONLY mode. Do NOT write or modify files.',
+    '',
+    systemPrompt,
+    '',
+    convo ? `Recent conversation:\n${convo}\n` : '',
+    `User: ${newMessage}`,
+    '',
+    'Respond to the user\'s latest message.',
+  ].filter(Boolean).join('\n');
 }
 
 function runCli(executable: string, args: string[], cwd: string): Promise<string> {
@@ -62,7 +79,7 @@ class ClaudeChatSession implements IChatSession {
     return this.parseResponse(raw);
   }
 
-  async continue(message: string): Promise<string> {
+  async continue(message: string, _history?: ChatHistoryEntry[]): Promise<string> {
     if (this.sessionId) {
       const raw = await runCli('claude', [
         '-p', '--output-format', 'json', '--model', this.model || 'sonnet',
@@ -85,33 +102,22 @@ class ClaudeChatSession implements IChatSession {
 }
 
 class CodexChatSession implements IChatSession {
-  private sessionId?: string;
+  private systemPrompt = '';
   constructor(private model: string, private cwd: string) {}
 
   async start(systemPrompt: string, firstMessage: string): Promise<string> {
+    this.systemPrompt = systemPrompt;
     const prompt = `IMPORTANT: You are in READ-ONLY mode. Do NOT write or modify files.\n\n${systemPrompt}\n\n${firstMessage}`;
     const args = ['exec', ...(this.model && this.model !== 'default' ? ['-m', this.model] : []), '--json', '--', prompt];
     const raw = await runCli('codex', args, this.cwd);
-    this.extractSession(raw);
     return this.parseResponse(raw);
   }
 
-  async continue(message: string): Promise<string> {
-    const args = this.sessionId
-      ? ['exec', 'resume', this.sessionId!, '--json', '--', message]
-      : ['exec', ...(this.model && this.model !== 'default' ? ['-m', this.model] : []), '--json', '--', message];
+  async continue(message: string, history?: ChatHistoryEntry[]): Promise<string> {
+    const context = buildContextPrompt(this.systemPrompt, history ?? [], message);
+    const args = ['exec', ...(this.model && this.model !== 'default' ? ['-m', this.model] : []), '--json', '--', context];
     const raw = await runCli('codex', args, this.cwd);
-    this.extractSession(raw);
     return this.parseResponse(raw);
-  }
-
-  private extractSession(raw: string) {
-    try {
-      for (const line of raw.split('\n')) {
-        const e = JSON.parse(line);
-        if (e.thread_id) { this.sessionId = e.thread_id; return; }
-      }
-    } catch { /* skip */ }
   }
 
   private parseResponse(raw: string): string {
@@ -128,32 +134,29 @@ class CodexChatSession implements IChatSession {
 }
 
 class GeminiChatSession implements IChatSession {
-  private sessionIndex?: string;
+  private systemPrompt = '';
   constructor(private model: string, private cwd: string) {}
 
   async start(systemPrompt: string, firstMessage: string): Promise<string> {
+    this.systemPrompt = systemPrompt;
     const prompt = `IMPORTANT: You are in READ-ONLY mode. Do NOT write or modify files.\n\n${systemPrompt}\n\n${firstMessage}`;
     const raw = await runCli('gemini', [
       '-p', prompt, '--output-format', 'json', '-m', this.model || 'gemini-2.5-flash',
     ], this.cwd);
-    try {
-      const envelope = JSON.parse(raw);
-      this.sessionIndex = envelope.session_id;
-    } catch { /* no session */ }
     return this.parseResponse(raw);
   }
 
-  async continue(message: string): Promise<string> {
-    const args = ['-p', message, '--output-format', 'json', '-m', this.model || 'gemini-2.5-flash'];
-    if (this.sessionIndex) args.push('--resume', this.sessionIndex);
-    const raw = await runCli('gemini', args, this.cwd);
+  async continue(message: string, history?: ChatHistoryEntry[]): Promise<string> {
+    const context = buildContextPrompt(this.systemPrompt, history ?? [], message);
+    const raw = await runCli('gemini', [
+      '-p', context, '--output-format', 'json', '-m', this.model || 'gemini-2.5-flash',
+    ], this.cwd);
     return this.parseResponse(raw);
   }
 
   private parseResponse(raw: string): string {
     try {
       const envelope = JSON.parse(raw);
-      this.sessionIndex = envelope.session_id ?? this.sessionIndex;
       return envelope.result ?? envelope.response ?? raw;
     } catch { return raw; }
   }

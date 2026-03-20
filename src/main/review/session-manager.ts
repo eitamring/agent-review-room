@@ -213,7 +213,7 @@ class SessionManager {
           if (notes.length > 0) agentResponses = notes.join('\n');
         }
 
-        const rawOutput = await runManagerAgent(session, clusters, allFindings, findingOwners, onEvent, agentResponses);
+        const rawOutput = await runManagerAgent(session, clusters, allFindings, findingOwners, onEvent, agentResponses, controller.signal);
         const split = splitManagerOutput(rawOutput);
         summaryText = split.summary;
         prDesc = split.prDesc;
@@ -355,7 +355,7 @@ class SessionManager {
         customPrompt: followUpContext,
       };
 
-      const rawOutput = await runManagerAgent(followUpManagerSession, clusters, allFindings, findingOwners, onEvent);
+      const rawOutput = await runManagerAgent(followUpManagerSession, clusters, allFindings, findingOwners, onEvent, undefined, controller.signal);
       const split = splitManagerOutput(rawOutput);
       const summaryText = split.summary;
 
@@ -465,7 +465,7 @@ class SessionManager {
       response = await chatSession.start(systemPrompt, message);
     } else {
       try {
-        response = await chatSession.continue(message);
+        response = await chatSession.continue(message, history);
       } catch (err) {
         const { clearChatSession } = await import('./chat-session');
         clearChatSession(sessionId);
