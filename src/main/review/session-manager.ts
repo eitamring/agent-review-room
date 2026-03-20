@@ -493,6 +493,8 @@ class SessionManager {
   }
 
   async clearAll(): Promise<void> {
+    const { clearAllChatSessions } = await import('./chat-session');
+    clearAllChatSessions();
     await sessionsStore.clearAll();
   }
 

@@ -14,6 +14,13 @@ export function getTimeoutMs(session: { timeoutMinutes?: number }): number {
 }
 export const now = () => new Date().toISOString();
 
+export function sanitize(s: string): string {
+  return s
+    .replace(/\x00/g, '')
+    .replace(/\x1b\[[0-9;]*[A-Za-z]/g, '')
+    .replace(/[^\n\t\x20-\x7e\x80-\uffff]/g, '');
+}
+
 export const FINDINGS_JSON_INSTRUCTIONS = `
 When you are done, output ONLY a raw JSON object (no markdown, no code fences, no explanation before or after):
 {"findings":[{"severity":"critical|high|medium|low","title":"...","summary":"...","confidence":"high|medium|low","evidence":[{"kind":"file|diff","path":"...","line":0,"excerpt":"..."}],"recommendation":"..."}]}
@@ -107,10 +114,10 @@ export async function buildPrompt(
       target = 'Review the uncommitted working tree changes (run `git diff` and `git diff --staged`).';
       break;
     case 'git-range':
-      target = `Review changes between ${rt.baseRef} and ${rt.headRef} (run \`git diff ${rt.baseRef}..${rt.headRef}\`).`;
+      target = `Review changes between ${sanitize(rt.baseRef)} and ${sanitize(rt.headRef)} (run \`git diff ${sanitize(rt.baseRef)}..${sanitize(rt.headRef)}\`).`;
       break;
     case 'patch-file':
-      target = `Review the patch file at ${rt.patchPath}.`;
+      target = `Review the patch file at ${sanitize(rt.patchPath)}.`;
       break;
   }
 

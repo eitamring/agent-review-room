@@ -23,11 +23,11 @@ The app opens as a desktop window. No cloud backend, no account creation.
 
 ### Security Note
 
-This app runs AI agents that can READ files on your machine. Each agent runs in a sandboxed/read-only mode.
+This app runs AI agents that can READ files on your machine. Reviewer agents use provider-specific sandboxing (Claude: `--allowedTools`, Codex: `--sandbox read-only`, Gemini: `--sandbox` Docker). Manager and chat sessions use READ-ONLY prompt injection without CLI-level sandboxing.
 
 - Claude CLI uses `--allowedTools` restricted to Read, Grep, Glob, and specific git subcommands (diff, log, show, status, blame, ls-files). Not `git:*`.
 - Codex CLI uses `--sandbox read-only`.
-- Gemini CLI uses `--sandbox` (Docker-based, limited to 1 concurrent reviewer) with `--approval-mode yolo`.
+- Gemini CLI uses `--sandbox` (Docker-based, limited to 1 concurrent reviewer).
 - All file access is restricted to the repository you select. Path traversal and symlink escapes are blocked via `fs.realpath`.
 - Skill file paths are validated (must be `.md`, exist on disk, under 50KB) before session creation.
 - `read-diff` uses `--no-ext-diff --no-textconv` to prevent external tool execution.
@@ -150,7 +150,7 @@ The Setup screen has these sections:
    - **Working tree** -- Reviews uncommitted changes (`git diff` and `git diff --staged`).
    - **Git ref range** -- Reviews changes between two refs. Dropdowns are populated from local branches and tags.
 
-4. **Review Instructions** -- Free-text prompt sent to all reviewers. Pre-filled with a default review prompt. A **PR format** checkbox appends instructions to format the manager summary as a PR review with issues, suggested fixes, and a verdict. A **Focus on changes only** toggle restricts reviewers to only the diff (ignoring surrounding code). A **Timeout** field lets you set the per-reviewer timeout in seconds.
+4. **Review Instructions** -- Free-text prompt sent to all reviewers. Pre-filled with a default review prompt. When a custom prompt is provided, it becomes the primary instruction. The review target (working tree, git range) is only included when using the default prompt. A **PR format** checkbox appends instructions to format the manager summary as a PR review with issues, suggested fixes, and a verdict. A **Focus on changes only** toggle restricts reviewers to only the diff (ignoring surrounding code). A **Timeout** field lets you set the per-reviewer timeout in minutes.
 
 5. **Manager** -- Select provider and model for the manager agent. Config-driven dropdowns with custom model ID option.
 
@@ -178,7 +178,7 @@ Press **Start Review** (or `Ctrl+Enter`). Requirements:
 
 The app launches all reviewer agents concurrently (up to 3 at a time; Gemini is limited to 1 concurrent reviewer due to its Docker-based sandbox) and transitions to the Live Review screen.
 
-**Single-reviewer sessions** skip the manager agent by design. The reviewer's output becomes the summary directly, saving tokens and avoiding redundant synthesis. PR description extraction still applies.
+**Single-reviewer sessions** skip the manager agent by design. The reviewer's output becomes the summary directly, saving tokens and avoiding redundant synthesis. Single-reviewer sessions skip the manager to save tokens. PR descriptions are only generated when the manager runs (2+ reviewers).
 
 ---
 
@@ -322,7 +322,7 @@ Built-in agents: **security**, **architecture**, **regression**, **test-gap**, *
 2. Drop it in either skills folder listed above.
 3. Restart the app -- the new agent appears in every reviewer's dropdown.
 
-You can also click **Import Agents Folder** on the Setup screen to load skill files from any directory without restarting. After importing, the config cache is invalidated so new skills take effect immediately.
+You can also click **Import Agents Folder** on the Setup screen to load skill files from any directory without restarting. Imported skill files must be `.md`, under 50KB, and within the user's home directory or app data directory.
 
 For a one-off agent that you don't want to save as a file, select **+ custom** from the agent dropdown and type a description inline.
 

@@ -1,4 +1,5 @@
 import type { ReviewerConfig, ReviewSession } from '../../shared/types';
+import { sanitize } from './cli-shared';
 
 export function buildReviewerSystemPrompt(
   session: ReviewSession,
@@ -34,10 +35,10 @@ export function buildReviewerUserMessage(
       target = 'Review the uncommitted working tree changes. Call read_diff with no arguments to see the current diff.';
       break;
     case 'git-range':
-      target = `Review changes between ${rt.baseRef} and ${rt.headRef}. Call read_diff with baseRef="${rt.baseRef}" and headRef="${rt.headRef}".`;
+      target = `Review changes between ${sanitize(rt.baseRef)} and ${sanitize(rt.headRef)}. Call read_diff with baseRef="${sanitize(rt.baseRef)}" and headRef="${sanitize(rt.headRef)}".`;
       break;
     case 'patch-file':
-      target = `Review the patch file at ${rt.patchPath}.`;
+      target = `Review the patch file at ${sanitize(rt.patchPath)}.`;
       break;
   }
   const userRoleLabel = reviewer.role === 'custom' && reviewer.customRoleTitle

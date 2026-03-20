@@ -188,3 +188,7 @@ export function getOrCreateChatSession(
 export function clearChatSession(sessionId: string): void {
   activeSessions.delete(sessionId);
 }
+
+export function clearAllChatSessions(): void {
+  activeSessions.clear();
+}

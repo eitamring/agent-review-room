@@ -16,7 +16,11 @@ class EventLog {
     try {
       const stat = await fs.stat(filePath);
       if (stat.size >= MAX_LOG_BYTES) {
-        throw new Error(`Event log for session ${sessionId} exceeds ${MAX_LOG_BYTES} bytes`);
+        const content = await fs.readFile(filePath, 'utf-8');
+        const lines = content.split('\n').filter(Boolean);
+        const removeCount = Math.ceil(lines.length * 0.2);
+        const trimmed = lines.slice(removeCount).join('\n') + '\n';
+        await fs.writeFile(filePath, trimmed, 'utf-8');
       }
     } catch (err) {
       if ((err as NodeJS.ErrnoException).code !== 'ENOENT') throw err;

@@ -155,7 +155,6 @@ export function registerIpcHandlers(): void {
     const os = await import('os');
 
     const normalized = pathM.resolve(dirPath);
-    if (normalized.includes('..') || dirPath.includes('..')) return [];
     let resolved: string;
     try {
       resolved = await fsP.realpath(normalized);
