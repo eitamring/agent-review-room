@@ -28,6 +28,12 @@ jobs:
       - name: Build
         run: npm run build
 
+      - name: Package
+        run: npm run package -- --dir
+
+      - name: Verify Bundled Skills
+        run: ./node_modules/.bin/asar list release/linux-unpacked/resources/app.asar | grep -q 'skills/'
+
   test:
     runs-on: ubuntu-latest
     steps:
