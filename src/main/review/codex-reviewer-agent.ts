@@ -62,12 +62,6 @@ export async function runCodexReviewerAgent(
     const findings: Finding[] = [];
     let buffer = '';
     let lastAssistantText = '';
-    let seconds = 0;
-
-    const heartbeat = setInterval(() => {
-      seconds += 15;
-      void onEvent({ type: 'agent.note', agentId: reviewer.id, at: now(), note: `Codex working… (${seconds}s)` });
-    }, 15_000);
 
     const timeout = setTimeout(() => {
       proc.kill('SIGTERM');
@@ -104,7 +98,6 @@ export async function runCodexReviewerAgent(
     });
 
     proc.on('close', async (code) => {
-      clearInterval(heartbeat);
       clearTimeout(timeout);
 
       let outputText = '';

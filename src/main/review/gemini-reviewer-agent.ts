@@ -56,12 +56,6 @@ export async function runGeminiReviewerAgent(
     let buffer = '';
     let resultText = '';
     let allAssistantText = '';
-    let seconds = 0;
-
-    const heartbeat = setInterval(() => {
-      seconds += 15;
-      void onEvent({ type: 'agent.note', agentId: reviewer.id, at: now(), note: `Gemini working… (${seconds}s)` });
-    }, 15_000);
 
     const timeout = setTimeout(() => {
       proc.kill('SIGTERM');
@@ -107,7 +101,6 @@ export async function runGeminiReviewerAgent(
     });
 
     proc.on('close', (code) => {
-      clearInterval(heartbeat);
       clearTimeout(timeout);
 
       if (buffer.trim()) {
