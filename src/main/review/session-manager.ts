@@ -184,22 +184,36 @@ class SessionManager {
         });
       }
 
-      let agentResponses: string | undefined;
-      if (allFindings.length === 0) {
+      let summaryText: string;
+      let prDesc: string | null = null;
+
+      if (session.reviewers.length === 1) {
+        // Single reviewer — use their output directly, no manager needed
         const allEvents = await eventLog.read(sessionId);
         const notes = allEvents
           .filter((e): e is Extract<ReviewEvent, { type: 'agent.note' }> => e.type === 'agent.note' && e.agentId !== 'system')
-          .map((e) => {
-            const reviewer = session.reviewers.find((r) => r.id === e.agentId);
-            const label = reviewer ? `${reviewer.role} (${reviewer.provider})` : e.agentId;
-            return `${label}: ${e.note}`;
-          });
-        if (notes.length > 0) agentResponses = notes.join('\n');
+          .map((e) => e.note);
+        const findingsSummary = allFindings.map((f) => `### [${f.severity}] ${f.title}\n${f.summary}\n${f.evidence.map((e) => `- ${e.path ?? ''}${e.line ? ':' + e.line : ''}`).join('\n')}\n**Recommendation:** ${f.recommendation}`).join('\n\n');
+        summaryText = findingsSummary || notes.join('\n') || 'No findings.';
+      } else {
+        let agentResponses: string | undefined;
+        if (allFindings.length === 0) {
+          const allEvents = await eventLog.read(sessionId);
+          const notes = allEvents
+            .filter((e): e is Extract<ReviewEvent, { type: 'agent.note' }> => e.type === 'agent.note' && e.agentId !== 'system')
+            .map((e) => {
+              const reviewer = session.reviewers.find((r) => r.id === e.agentId);
+              const label = reviewer ? `${reviewer.role} (${reviewer.provider})` : e.agentId;
+              return `${label}: ${e.note}`;
+            });
+          if (notes.length > 0) agentResponses = notes.join('\n');
+        }
+
+        const rawOutput = await runManagerAgent(session, clusters, allFindings, findingOwners, onEvent, agentResponses);
+        const split = splitManagerOutput(rawOutput);
+        summaryText = split.summary;
+        prDesc = split.prDesc;
       }
-
-      const rawOutput = await runManagerAgent(session, clusters, allFindings, findingOwners, onEvent, agentResponses);
-
-      const { summary: summaryText, prDesc } = splitManagerOutput(rawOutput);
 
       const summaryPath = await resolveSessionPath(sessionId, 'summary.md');
       await fs.writeFile(summaryPath, summaryText, 'utf-8');

@@ -2,6 +2,7 @@
 
 ## Next
 
+- Pluggable manager skills (`manager-skills/` folder) -- e.g. flowchart-manager (mermaid diagrams), api-doc-manager, dependency-graph-manager with interactive function inspector
 - Jira / external data integration -- custom hooks to fetch context from Jira, Linear, GitHub Issues before review starts
 - Custom CLI input -- support arbitrary CLI tools as providers
 - Dark theme toggle (tokens defined in `themes.css`)
