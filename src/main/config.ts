@@ -75,7 +75,12 @@ export async function loadConfig(): Promise<AppConfig> {
     } catch { /* no project config */ }
   }
 
-  const providers = config?.providers ?? DEFAULT_CONFIG.providers;
+  let providers = DEFAULT_CONFIG.providers;
+  if (config && Array.isArray(config.providers) && config.providers.every(
+    (p: Record<string, unknown>) => typeof p.id === 'string' && typeof p.name === 'string' && Array.isArray(p.models),
+  )) {
+    providers = config.providers as ProviderOption[];
+  }
 
   // Load skills: user skills dir > project skills dir > built-in
   let skills = await loadSkillsFromDir(path.join(app.getPath('userData'), 'skills'));

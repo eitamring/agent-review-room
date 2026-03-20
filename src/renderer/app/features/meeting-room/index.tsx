@@ -307,7 +307,7 @@ export function MeetingRoomScreen({ session, onBack, onNewReview }: Props) {
                 {m.content}
               </div>
             ))}
-            {chatSending && <div className={styles.chatTyping}>Manager is thinking...</div>}
+            {chatSending && <div className={styles.chatThinking}>Manager is thinking...</div>}
             <div ref={chatEndRef} />
           </div>
           <div className={styles.chatInput}>

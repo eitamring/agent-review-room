@@ -92,5 +92,3 @@ Robot sprites: [Cute Platformer Robot](https://foozlecc.itch.io/cute-platformer-
 ## License
 
 MIT. See `LICENSE`.
-
-See `SPEC.md` for full product specification.

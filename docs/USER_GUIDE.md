@@ -151,7 +151,7 @@ The Setup screen has these sections:
    - **Working tree** -- Reviews uncommitted changes (`git diff` and `git diff --staged`).
    - **Git ref range** -- Reviews changes between two refs. Dropdowns are populated from local branches and tags.
 
-4. **Review Instructions** -- Free-text prompt sent to all reviewers. Pre-filled with a default review prompt. A **PR format** checkbox appends instructions to format the manager summary as a PR review with issues, suggested fixes, and a verdict.
+4. **Review Instructions** -- Free-text prompt sent to all reviewers. Pre-filled with a default review prompt. A **PR format** checkbox appends instructions to format the manager summary as a PR review with issues, suggested fixes, and a verdict. A **Focus on changes only** toggle restricts reviewers to only the diff (ignoring surrounding code). A **Timeout** field lets you set the per-reviewer timeout in seconds.
 
 5. **Manager** -- Select provider and model for the manager agent. Config-driven dropdowns with custom model ID option.
 
@@ -243,12 +243,20 @@ The right panel displays the manager's consolidated summary rendered as Markdown
 
 ### Follow-Up Prompts
 
-After a review completes, a follow-up section appears at the bottom:
+After a review completes, a **+ Follow Up** button appears in the header. Clicking it opens a dialog where you:
 1. Type a follow-up question (e.g. "Look deeper at the auth token handling")
 2. Select which reviewers should handle it via checkboxes
 3. Press **Send Follow Up**
 
 The follow-up runs with context from the original review (existing finding titles). The manager produces a new summary that includes both original and follow-up findings.
+
+### PR Description
+
+When the review completes, a collapsible **Recommended PR Description** section appears below the manager summary. It contains a generated PR description based on the review findings, with a **Copy to clipboard** button.
+
+### Consult Manager
+
+A collapsible **Consult Manager** chat section appears below the findings and summary. Use it to ask the manager follow-up questions about the review, prioritize fixes, or get clarification on specific findings. The manager has full context of the review summary and all findings.
 
 ### Export
 

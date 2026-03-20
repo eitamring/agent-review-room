@@ -448,7 +448,14 @@ class SessionManager {
 
     const userMsg: ChatMessage = { role: 'user', content: message, at: new Date().toISOString() };
     const assistantMsg: ChatMessage = { role: 'assistant', content: response, at: new Date().toISOString() };
-    await fs.appendFile(chatPath, JSON.stringify(userMsg) + '\n' + JSON.stringify(assistantMsg) + '\n', 'utf-8');
+    history.push(userMsg, assistantMsg);
+
+    if (history.length > 50) {
+      history = history.slice(-50);
+      await fs.writeFile(chatPath, history.map((m) => JSON.stringify(m)).join('\n') + '\n', 'utf-8');
+    } else {
+      await fs.appendFile(chatPath, JSON.stringify(userMsg) + '\n' + JSON.stringify(assistantMsg) + '\n', 'utf-8');
+    }
 
     return response;
   }
@@ -457,7 +464,8 @@ class SessionManager {
     const chatPath = await resolveSessionPath(sessionId, 'chat.jsonl');
     try {
       const raw = await fs.readFile(chatPath, 'utf-8');
-      return raw.trim().split('\n').filter(Boolean).map((line) => JSON.parse(line));
+      const all = raw.trim().split('\n').filter(Boolean).map((line) => JSON.parse(line));
+      return all.slice(-50);
     } catch {
       return [];
     }

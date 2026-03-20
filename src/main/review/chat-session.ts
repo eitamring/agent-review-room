@@ -1,14 +1,10 @@
 import { spawn } from 'child_process';
-import fs from 'fs/promises';
 import type { LLMProvider } from '../../shared/types';
-import { resolveSessionPath } from '../storage/session-paths';
 
 export interface IChatSession {
   start(systemPrompt: string, firstMessage: string): Promise<string>;
   continue(message: string): Promise<string>;
 }
-
-type ChatState = { provider: LLMProvider; cliSessionId?: string; model: string; cwd: string };
 
 function runCli(executable: string, args: string[], cwd: string): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -46,16 +42,6 @@ function runCli(executable: string, args: string[], cwd: string): Promise<string
   });
 }
 
-function extractSessionId(raw: string, provider: LLMProvider): string | undefined {
-  try {
-    const parsed = JSON.parse(raw);
-    if (provider === 'claude-cli') return parsed.session_id;
-    if (provider === 'codex-cli') return parsed.thread_id ?? parsed.session_id;
-    if (provider === 'gemini-cli') return parsed.session_id;
-  } catch { /* not JSON, try to extract from text */ }
-  return undefined;
-}
-
 class ClaudeChatSession implements IChatSession {
   private sessionId?: string;
   constructor(private model: string, private cwd: string) {}
@@ -63,12 +49,12 @@ class ClaudeChatSession implements IChatSession {
   async start(systemPrompt: string, firstMessage: string): Promise<string> {
     const prompt = `${systemPrompt}\n\n${firstMessage}`;
     const raw = await runCli('claude', [
-      '-p', prompt, '--output-format', 'json', '--model', this.model || 'sonnet',
+      '-p', '--output-format', 'json', '--model', this.model || 'sonnet', '--', prompt,
     ], this.cwd);
     try { this.sessionId = JSON.parse(raw).session_id; } catch { /* extract from response */ }
     if (!this.sessionId) {
       const result = await runCli('claude', [
-        '-p', prompt, '--output-format', 'json', '--model', this.model || 'sonnet',
+        '-p', '--output-format', 'json', '--model', this.model || 'sonnet', '--', prompt,
       ], this.cwd);
       try { this.sessionId = JSON.parse(result).session_id; } catch { /* no session */ }
       return this.parseResponse(result);
@@ -79,13 +65,13 @@ class ClaudeChatSession implements IChatSession {
   async continue(message: string): Promise<string> {
     if (this.sessionId) {
       const raw = await runCli('claude', [
-        '-p', message, '--output-format', 'json', '--model', this.model || 'sonnet',
-        '--resume', this.sessionId,
+        '-p', '--output-format', 'json', '--model', this.model || 'sonnet',
+        '--resume', this.sessionId, '--', message,
       ], this.cwd);
       return this.parseResponse(raw);
     }
     return runCli('claude', [
-      '-p', message, '--output-format', 'json', '--model', this.model || 'sonnet', '--no-session-persistence',
+      '-p', '--output-format', 'json', '--model', this.model || 'sonnet', '--no-session-persistence', '--', message,
     ], this.cwd);
   }
 
@@ -104,7 +90,7 @@ class CodexChatSession implements IChatSession {
 
   async start(systemPrompt: string, firstMessage: string): Promise<string> {
     const prompt = `${systemPrompt}\n\n${firstMessage}`;
-    const args = ['exec', prompt, ...(this.model && this.model !== 'default' ? ['-m', this.model] : []), '--json'];
+    const args = ['exec', ...(this.model && this.model !== 'default' ? ['-m', this.model] : []), '--json', '--', prompt];
     const raw = await runCli('codex', args, this.cwd);
     this.extractSession(raw);
     return this.parseResponse(raw);
@@ -112,8 +98,8 @@ class CodexChatSession implements IChatSession {
 
   async continue(message: string): Promise<string> {
     const args = this.sessionId
-      ? ['exec', 'resume', '--last', message, '--json']
-      : ['exec', message, ...(this.model && this.model !== 'default' ? ['-m', this.model] : []), '--json'];
+      ? ['exec', 'resume', '--last', '--json', '--', message]
+      : ['exec', ...(this.model && this.model !== 'default' ? ['-m', this.model] : []), '--json', '--', message];
     const raw = await runCli('codex', args, this.cwd);
     this.extractSession(raw);
     return this.parseResponse(raw);
@@ -148,7 +134,7 @@ class GeminiChatSession implements IChatSession {
   async start(systemPrompt: string, firstMessage: string): Promise<string> {
     const prompt = `${systemPrompt}\n\n${firstMessage}`;
     const raw = await runCli('gemini', [
-      '-p', prompt, '--output-format', 'json', '-m', this.model || 'gemini-2.5-flash', '--sandbox',
+      '-p', '--output-format', 'json', '-m', this.model || 'gemini-2.5-flash', '--sandbox', '--', prompt,
     ], this.cwd);
     try {
       const envelope = JSON.parse(raw);
@@ -158,8 +144,9 @@ class GeminiChatSession implements IChatSession {
   }
 
   async continue(message: string): Promise<string> {
-    const args = ['-p', message, '--output-format', 'json', '-m', this.model || 'gemini-2.5-flash'];
+    const args = ['-p', '--output-format', 'json', '-m', this.model || 'gemini-2.5-flash'];
     if (this.sessionIndex) args.push('--resume', this.sessionIndex);
+    args.push('--', message);
     const raw = await runCli('gemini', args, this.cwd);
     return this.parseResponse(raw);
   }

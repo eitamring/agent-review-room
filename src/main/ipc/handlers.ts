@@ -97,8 +97,16 @@ export function registerIpcHandlers(): void {
   ipcMain.handle(IPC_CHANNELS.FS_LIST_SKILLS, async (_event, dirPath: string) => {
     const fsP = await import('fs/promises');
     const pathM = await import('path');
+    const os = await import('os');
+
+    const normalized = pathM.resolve(dirPath);
+    if (normalized.includes('..') || dirPath.includes('..')) return [];
+    const homeDir = os.homedir();
+    const appData = (await import('electron')).app.getPath('userData');
+    if (!normalized.startsWith(homeDir) && !normalized.startsWith(appData)) return [];
+
     try {
-      const entries = await fsP.readdir(dirPath, { withFileTypes: true });
+      const entries = await fsP.readdir(normalized, { withFileTypes: true });
       const skills: Array<{ name: string; path: string; content: string }> = [];
       for (const entry of entries) {
         if (entry.isFile() && entry.name.endsWith('.md')) {
@@ -166,6 +174,12 @@ export function registerIpcHandlers(): void {
   });
 
   ipcMain.handle(IPC_CHANNELS.CHAT_SEND, async (_event, sessionId: string, message: string) => {
+    if (typeof sessionId !== 'string' || !/^[a-f0-9-]+$/.test(sessionId)) {
+      throw new Error('Invalid sessionId');
+    }
+    if (typeof message !== 'string' || message.length === 0 || message.length > 10000) {
+      throw new Error('Invalid message: must be 1-10000 characters');
+    }
     return sessionManager.chatWithManager(sessionId, message);
   });
 
