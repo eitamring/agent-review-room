@@ -125,17 +125,17 @@ class SessionManager {
       session.status = 'running';
       await sessionsStore.write(session);
 
-      // Gemini CLI --sandbox uses Docker with a hardcoded container name,
-      // so only one Gemini instance can run at a time.
-      const hasGemini = session.reviewers.some((r) => r.provider === 'gemini-cli');
-      const maxConcurrent = hasGemini ? 1 : Math.min(session.reviewers.length, 3);
-      const sem = new Semaphore(maxConcurrent);
+      const sem = new Semaphore(Math.min(session.reviewers.length, 3));
+      const geminiSem = new Semaphore(1);
       const allFindings: Finding[] = [];
       const findingOwners = new Map<string, string>();
 
       await Promise.all(
         session.reviewers.map(async (reviewer) => {
+          const isGemini = reviewer.provider === 'gemini-cli';
+          if (isGemini) await geminiSem.acquire();
           await sem.acquire();
+          if (controller.signal.aborted) return;
           try {
             const runAgent = pickRunner(reviewer.provider);
             const findings = await runAgent(
@@ -163,6 +163,7 @@ class SessionManager {
             });
           } finally {
             sem.release();
+            if (isGemini) geminiSem.release();
           }
         }),
       );
@@ -283,9 +284,8 @@ class SessionManager {
         `Follow-up task: ${prompt}`,
       ].join('\n');
 
-      const hasGemini = selectedReviewers.some((r) => r.provider === 'gemini-cli');
-      const maxConcurrent = hasGemini ? 1 : Math.min(selectedReviewers.length, 3);
-      const sem = new Semaphore(maxConcurrent);
+      const sem = new Semaphore(Math.min(selectedReviewers.length, 3));
+      const geminiSem = new Semaphore(1);
       const newFindings: Finding[] = [];
       const findingOwners = new Map<string, string>();
 
@@ -293,7 +293,10 @@ class SessionManager {
 
       await Promise.all(
         selectedReviewers.map(async (reviewer) => {
+          const isGemini = reviewer.provider === 'gemini-cli';
+          if (isGemini) await geminiSem.acquire();
           await sem.acquire();
+          if (controller.signal.aborted) return;
           try {
             const followUpSession: ReviewSession = {
               ...session,
@@ -325,6 +328,7 @@ class SessionManager {
             });
           } finally {
             sem.release();
+            if (isGemini) geminiSem.release();
           }
         }),
       );
