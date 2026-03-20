@@ -14,6 +14,7 @@ export function MeetingRoomScreen({ session, onBack, onNewReview }: Props) {
   const [findings, setFindings] = useState<Finding[]>([]);
   const [summary, setSummary] = useState<string | null>(null);
   const [findingOwners, setFindingOwners] = useState<Map<string, string>>(new Map());
+  const [sessionStatus, setSessionStatus] = useState(session?.status ?? 'queued');
   const [followUpPrompt, setFollowUpPrompt] = useState('');
   const [selectedReviewers, setSelectedReviewers] = useState<Set<string>>(new Set());
   const [followUpRunning, setFollowUpRunning] = useState(false);
@@ -30,6 +31,10 @@ export function MeetingRoomScreen({ session, onBack, onNewReview }: Props) {
   useEffect(() => {
     if (!session) return;
     let stale = false;
+
+    window.api.session.get(session.id).then((fresh) => {
+      if (!stale && fresh) setSessionStatus(fresh.status);
+    });
 
     window.api.findings.get(session.id).then((f) => { if (!stale) setFindings(f); });
 
@@ -77,6 +82,7 @@ export function MeetingRoomScreen({ session, onBack, onNewReview }: Props) {
       if (stale) return;
       if (s && s.status === 'completed') {
         setFollowUpRunning(false);
+        setSessionStatus('completed');
         const [updatedFindings, updatedSummary] = await Promise.all([
           window.api.findings.get(session.id),
           window.api.session.getSummary(session.id),
@@ -86,6 +92,7 @@ export function MeetingRoomScreen({ session, onBack, onNewReview }: Props) {
         if (updatedSummary) setSummary(updatedSummary);
       } else if (s && s.status === 'failed') {
         setFollowUpRunning(false);
+        setSessionStatus('failed');
       } else {
         setTimeout(poll, 2000);
       }
@@ -285,7 +292,7 @@ export function MeetingRoomScreen({ session, onBack, onNewReview }: Props) {
         </div>
       </div>
 
-      {(session.status === 'completed' || followUpRunning) ? (
+      {(sessionStatus === 'completed' || followUpRunning) ? (
         <div className={styles.followUpSection}>
           <h2 className={styles.followUpTitle}>Follow Up</h2>
           <textarea
