@@ -46,7 +46,6 @@ src/
     storage/      File-based persistence (session.json, events.jsonl, findings.json)
     security/     Path guard (realpath-based), command policy (git subcommand allowlist)
     ipc/          IPC channels and handlers (input validation, skill file boundary checks)
-    providers/    Gateway interface (for future API-key providers)
     config.ts     Config-driven provider/model definitions
   preload/        Typed IPC bridge (contextIsolation + sandbox)
   renderer/       React 19 UI
@@ -63,7 +62,7 @@ src/
 - CLI providers use restricted git subcommands only: `diff`, `log`, `show`, `status`, `branch`, `tag`, `rev-parse`, `for-each-ref`, `ls-files`, `blame`, `shortlog`
 - Claude CLI uses `--allowedTools Read,Grep,Glob,Bash(git diff:*),Bash(git log:*),Bash(git show:*),...` (specific subcommands, not `git:*`)
 - Codex CLI uses `--sandbox read-only`
-- Gemini CLI uses `--sandbox` and `--approval-mode yolo`
+- Gemini CLI uses `--sandbox` (Docker-based, limited to 1 concurrent) and `--approval-mode yolo`
 - File tools enforce repo boundary via `fs.realpath` (symlink-safe)
 - Skill file paths validated against allowed directories (built-in skills, user config skills, repo) before session creation
 - `read-diff` uses `--no-ext-diff --no-textconv` to prevent external tool execution
@@ -78,7 +77,7 @@ The app shells out to locally installed CLI tools. No API keys are needed -- eac
 |----------|-----|-----------|
 | **Claude** | `claude -p` | `--output-format stream-json`, `--allowedTools` (restricted git subcommands) |
 | **Codex** | `codex exec` | `--sandbox read-only`, `--json`, `-o` (output file); no `--output-schema` |
-| **Gemini** | `gemini -p` | `--output-format stream-json`, `--sandbox`, `--approval-mode yolo` |
+| **Gemini** | `gemini -p` | `--output-format stream-json`, `--sandbox` (Docker-based, limited to 1 concurrent), `--approval-mode yolo` |
 
 Default models: Claude Sonnet, Codex Default, Gemini 2.5 Flash. All models are config-driven and selectable from dropdowns, with an option to type a custom model ID.
 

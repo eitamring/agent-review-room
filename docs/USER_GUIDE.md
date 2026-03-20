@@ -27,7 +27,7 @@ This app runs AI agents that can READ files on your machine. Each agent runs in 
 
 - Claude CLI uses `--allowedTools` restricted to Read, Grep, Glob, and specific git subcommands (diff, log, show, status, blame, ls-files). Not `git:*`.
 - Codex CLI uses `--sandbox read-only`.
-- Gemini CLI uses `--sandbox` with `--approval-mode yolo`.
+- Gemini CLI uses `--sandbox` (Docker-based, limited to 1 concurrent reviewer) with `--approval-mode yolo`.
 - All file access is restricted to the repository you select. Path traversal and symlink escapes are blocked via `fs.realpath`.
 - Skill file paths are validated against allowed directories (built-in skills, user config skills, repo) before session creation.
 - `read-diff` uses `--no-ext-diff --no-textconv` to prevent external tool execution.

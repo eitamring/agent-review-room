@@ -51,7 +51,7 @@ export async function runManagerAgent(
 }
 
 async function runViaCli(session: ReviewSession, findingsText: string, taskContext: string, hasFindings: boolean): Promise<string> {
-  const systemPrompt = buildManagerSystemPrompt(hasFindings, session.customPrompt);
+  const systemPrompt = 'You are in READ-ONLY mode. Do NOT write or modify files.\n\n' + buildManagerSystemPrompt(hasFindings, session.customPrompt);
   const prompt = [
     systemPrompt,
     '',

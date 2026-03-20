@@ -47,7 +47,7 @@ class ClaudeChatSession implements IChatSession {
   constructor(private model: string, private cwd: string) {}
 
   async start(systemPrompt: string, firstMessage: string): Promise<string> {
-    const prompt = `${systemPrompt}\n\n${firstMessage}`;
+    const prompt = `IMPORTANT: You are in READ-ONLY mode. Do NOT write or modify files.\n\n${systemPrompt}\n\n${firstMessage}`;
     const raw = await runCli('claude', [
       '-p', '--output-format', 'json', '--model', this.model || 'sonnet', '--', prompt,
     ], this.cwd);
@@ -89,7 +89,7 @@ class CodexChatSession implements IChatSession {
   constructor(private model: string, private cwd: string) {}
 
   async start(systemPrompt: string, firstMessage: string): Promise<string> {
-    const prompt = `${systemPrompt}\n\n${firstMessage}`;
+    const prompt = `IMPORTANT: You are in READ-ONLY mode. Do NOT write or modify files.\n\n${systemPrompt}\n\n${firstMessage}`;
     const args = ['exec', ...(this.model && this.model !== 'default' ? ['-m', this.model] : []), '--json', '--', prompt];
     const raw = await runCli('codex', args, this.cwd);
     this.extractSession(raw);
@@ -132,7 +132,7 @@ class GeminiChatSession implements IChatSession {
   constructor(private model: string, private cwd: string) {}
 
   async start(systemPrompt: string, firstMessage: string): Promise<string> {
-    const prompt = `${systemPrompt}\n\n${firstMessage}`;
+    const prompt = `IMPORTANT: You are in READ-ONLY mode. Do NOT write or modify files.\n\n${systemPrompt}\n\n${firstMessage}`;
     const raw = await runCli('gemini', [
       '-p', '--output-format', 'json', '-m', this.model || 'gemini-2.5-flash', '--', prompt,
     ], this.cwd);
@@ -167,7 +167,7 @@ export function createChatSession(provider: LLMProvider, model: string, cwd: str
     case 'claude-cli': return new ClaudeChatSession(model, cwd);
     case 'codex-cli': return new CodexChatSession(model, cwd);
     case 'gemini-cli': return new GeminiChatSession(model, cwd);
-    default: return new ClaudeChatSession(model, cwd);
+    default: throw new Error(`Unknown chat provider: ${provider}`);
   }
 }
 

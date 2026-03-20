@@ -35,6 +35,7 @@ export async function runGeminiReviewerAgent(
     '-p', prompt,
     '--output-format', 'stream-json',
     '-m', model,
+    '--sandbox',
   ];
 
   await onEvent({

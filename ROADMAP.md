@@ -9,6 +9,7 @@
 - Patch file review target
 - Duplicate finding dedup before meeting
 - Tool hardening: file size limits, binary detection, diff truncation
+- Interface abstractions: IReviewerAgent, IManagerAgent, IStorageBackend
 
 ## Done
 

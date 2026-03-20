@@ -17,7 +17,8 @@ export function registerIpcHandlers(): void {
   handlersRegistered = true;
 
   ipcMain.handle(IPC_CHANNELS.SESSION_CREATE, async (_event, params: CreateSessionParams) => {
-    const VALID_PROVIDERS = new Set(['claude-cli', 'codex-cli', 'gemini-cli']);
+    const config = await loadConfig();
+    const VALID_PROVIDERS = new Set(config.providers.map((p) => p.id));
     const VALID_ROLES = new Set(['regression', 'architecture', 'security', 'test-gap', 'performance', 'custom']);
 
     const repoValidation = await sessionManager.validateRepo(params.repoPath);

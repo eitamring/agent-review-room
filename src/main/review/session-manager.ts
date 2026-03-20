@@ -32,7 +32,7 @@ function pickRunner(provider: string) {
     case 'claude-cli': return runCliReviewerAgent;
     case 'codex-cli': return runCodexReviewerAgent;
     case 'gemini-cli': return runGeminiReviewerAgent;
-    default: return runCliReviewerAgent;
+    default: throw new Error(`Unknown provider: ${provider}`);
   }
 }
 
@@ -125,8 +125,10 @@ class SessionManager {
       session.status = 'running';
       await sessionsStore.write(session);
 
-      // Run reviewers concurrently with semaphore (default: up to 3 at once)
-      const maxConcurrent = Math.min(session.reviewers.length, 3);
+      // Gemini CLI --sandbox uses Docker with a hardcoded container name,
+      // so only one Gemini instance can run at a time.
+      const hasGemini = session.reviewers.some((r) => r.provider === 'gemini-cli');
+      const maxConcurrent = hasGemini ? 1 : Math.min(session.reviewers.length, 3);
       const sem = new Semaphore(maxConcurrent);
       const allFindings: Finding[] = [];
       const findingOwners = new Map<string, string>();
@@ -278,7 +280,8 @@ class SessionManager {
         `Follow-up task: ${prompt}`,
       ].join('\n');
 
-      const maxConcurrent = Math.min(selectedReviewers.length, 3);
+      const hasGemini = selectedReviewers.some((r) => r.provider === 'gemini-cli');
+      const maxConcurrent = hasGemini ? 1 : Math.min(selectedReviewers.length, 3);
       const sem = new Semaphore(maxConcurrent);
       const newFindings: Finding[] = [];
       const findingOwners = new Map<string, string>();
