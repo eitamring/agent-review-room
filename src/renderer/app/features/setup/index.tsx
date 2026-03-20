@@ -72,6 +72,7 @@ export function SetupScreen({ onStart, onResumeSession, submitRef }: SetupScreen
   const [managerModel, setManagerModel] = useState('sonnet');
   const [customPrompt, setCustomPrompt] = useState('Review this repository for bugs, security issues, and code quality. Read the code and diff before reporting findings.');
   const [prFormat, setPrFormat] = useState(true);
+  const [focusChanges, setFocusChanges] = useState(true);
   const [timeoutMin, setTimeoutMin] = useState(10);
   const [reviewers, setReviewers] = useState<ReviewerDraft[]>([
     makeReviewer('security'),
@@ -162,7 +163,9 @@ export function SetupScreen({ onStart, onResumeSession, submitRef }: SetupScreen
         ...(r.skillFile ? { skillFilePath: r.skillFile } : {}),
       })),
       manager: { provider: managerProvider, model: managerModel, synthesisStyle: 'balanced' },
-      customPrompt: (customPrompt.trim() || '') + (prFormat ? '\n\nFormat the manager summary as a PR review: list issues, suggested fixes, and an overall verdict.' : ''),
+      customPrompt: (customPrompt.trim() || '')
+        + (focusChanges && targetKind === 'git-range' ? `\n\nFocus only on the changes between ${baseRef} and ${headRef}. Start the summary with a short description of what this PR/branch does.` : '')
+        + (prFormat ? '\n\nFormat the manager summary as a PR review: list issues, suggested fixes, and an overall verdict.' : ''),
       timeoutMinutes: timeoutMin,
     });
 
@@ -277,6 +280,12 @@ export function SetupScreen({ onStart, onResumeSession, submitRef }: SetupScreen
           <input type="checkbox" checked={prFormat} onChange={(e) => setPrFormat(e.target.checked)} />
           Summarize as PR review format
         </label>
+        {targetKind === 'git-range' && (
+          <label className={styles.radio}>
+            <input type="checkbox" checked={focusChanges} onChange={(e) => setFocusChanges(e.target.checked)} />
+            Focus on changes only (describe PR at start of summary)
+          </label>
+        )}
       </section>
 
       <section className={styles.section}>

@@ -29,15 +29,15 @@ type Props = {
 type Cfg = { sheet: string; row: number; fps: number; speed: number };
 
 const STATE_MAP: Record<string, Cfg> = {
-  planning:  { sheet: walkSheet, row: 0, fps: 4,  speed: 0.8 },
-  reading:   { sheet: walkSheet, row: 0, fps: 6,  speed: 1.5 },
-  searching: { sheet: runSheet,  row: 0, fps: 10, speed: 2.5 },
-  comparing: { sheet: walkSheet, row: 1, fps: 5,  speed: 1.0 },
-  drafting:  { sheet: walkSheet, row: 1, fps: 3,  speed: 0.5 },
+  planning:  { sheet: walkSheet, row: 0, fps: 3,  speed: 0.4 },
+  reading:   { sheet: walkSheet, row: 0, fps: 4,  speed: 0.7 },
+  searching: { sheet: runSheet,  row: 0, fps: 6,  speed: 1.2 },
+  comparing: { sheet: walkSheet, row: 1, fps: 4,  speed: 0.5 },
+  drafting:  { sheet: walkSheet, row: 1, fps: 3,  speed: 0.3 },
   blocked:   { sheet: jumpSheet, row: 0, fps: 6,  speed: 0 },
   done:      { sheet: idleSheet, row: 0, fps: 1,  speed: 0 },
 };
-const DEFAULT_CFG: Cfg = { sheet: walkSheet, row: 0, fps: 4, speed: 0.8 };
+const DEFAULT_CFG: Cfg = { sheet: walkSheet, row: 0, fps: 3, speed: 0.4 };
 
 const PROVIDER_HUE: Record<string, number> = {
   'claude-cli': 20,
@@ -93,7 +93,7 @@ export function PixelAgent({ color: _color, role, state, statusText, label, prov
           pauseTimerRef.current = setTimeout(() => {
             pickTarget();
             pausedRef.current = false;
-          }, 200 + Math.random() * 500);
+          }, 800 + Math.random() * 1200);
           return x;
         }
 
