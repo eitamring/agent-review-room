@@ -35,9 +35,17 @@ export function MeetingRoomScreen({ session, onBack, onNewReview }: Props) {
     if (!session) return;
     let stale = false;
 
-    window.api.session.get(session.id).then((fresh) => {
-      if (!stale && fresh) setSessionStatus(fresh.status);
-    });
+    const pollStatus = async () => {
+      const fresh = await window.api.session.get(session.id);
+      if (stale) return;
+      if (fresh) {
+        setSessionStatus(fresh.status);
+        if (fresh.status !== 'completed' && fresh.status !== 'failed') {
+          setTimeout(pollStatus, 2000);
+        }
+      }
+    };
+    pollStatus();
 
     window.api.findings.get(session.id).then((f) => { if (!stale) setFindings(f); });
 
