@@ -147,3 +147,57 @@
 .followUpBtn:hover { opacity: 0.9; }
 .followUpBtn:disabled { opacity: 0.5; cursor: not-allowed; }
 .followUpStatus { font-size: var(--font-size-sm); color: var(--color-text-muted); font-style: italic; }
+
+.chatSection {
+  border-top: 1px solid var(--color-border-subtle);
+  padding: var(--space-4) var(--space-6);
+}
+.chatToggle {
+  font-size: var(--font-size-sm); font-weight: var(--font-weight-semibold);
+  color: var(--color-accent-primary); cursor: pointer; list-style: none;
+}
+.chatToggle::-webkit-details-marker { display: none; }
+.chatToggle::before { content: '▶ '; font-size: 10px; }
+.chatSection[open] > .chatToggle::before { content: '▼ '; }
+
+.chatMessages {
+  max-height: 400px; overflow-y: auto;
+  display: flex; flex-direction: column; gap: var(--space-2);
+  margin-top: var(--space-3); padding: var(--space-2) 0;
+}
+.chatUserMsg {
+  align-self: flex-end; max-width: 75%;
+  padding: var(--space-2) var(--space-3);
+  background: var(--color-accent-primary); color: #fff;
+  border-radius: var(--radius-md); font-size: var(--font-size-sm);
+  white-space: pre-wrap; word-break: break-word;
+}
+.chatAssistantMsg {
+  align-self: flex-start; max-width: 75%;
+  padding: var(--space-2) var(--space-3);
+  background: var(--color-bg-overlay); color: var(--color-text-primary);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-md); font-size: var(--font-size-sm);
+  white-space: pre-wrap; word-break: break-word;
+}
+.chatInput {
+  display: flex; gap: var(--space-2); margin-top: var(--space-3);
+}
+.chatInput input {
+  flex: 1; padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--color-border-default); border-radius: var(--radius-md);
+  font-family: var(--font-sans); font-size: var(--font-size-sm);
+  color: var(--color-text-primary); background: var(--color-bg-overlay);
+}
+.chatInput input:focus { outline: none; border-color: var(--color-accent-primary); }
+.chatInput button {
+  padding: var(--space-2) var(--space-4);
+  background: var(--color-accent-primary); color: #fff;
+  border: none; border-radius: var(--radius-md);
+  font-size: var(--font-size-sm); font-weight: var(--font-weight-medium); cursor: pointer;
+}
+.chatInput button:disabled { opacity: 0.5; cursor: not-allowed; }
+.chatTyping {
+  font-size: var(--font-size-xs); color: var(--color-text-muted);
+  font-style: italic; margin-top: var(--space-2);
+}

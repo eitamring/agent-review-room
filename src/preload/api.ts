@@ -59,6 +59,10 @@ export type AppApi = {
     markdown(sessionId: string): Promise<ExportResult>;
     json(sessionId: string): Promise<ExportResult>;
   };
+  chat: {
+    send(sessionId: string, message: string): Promise<string>;
+    getHistory(sessionId: string): Promise<Array<{ role: string; content: string; at: string }>>;
+  };
   config: {
     get(): Promise<{
       providers: Array<{

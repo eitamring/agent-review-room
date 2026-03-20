@@ -165,5 +165,13 @@ export function registerIpcHandlers(): void {
     return { success: true, filePath: result.filePath };
   });
 
+  ipcMain.handle(IPC_CHANNELS.CHAT_SEND, async (_event, sessionId: string, message: string) => {
+    return sessionManager.chatWithManager(sessionId, message);
+  });
+
+  ipcMain.handle(IPC_CHANNELS.CHAT_GET, async (_event, sessionId: string) => {
+    return sessionManager.getChatHistory(sessionId);
+  });
+
   ipcMain.handle(IPC_CHANNELS.CONFIG_GET, () => loadConfig());
 }

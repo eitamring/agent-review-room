@@ -24,6 +24,8 @@ const CH = {
   EXPORT_MARKDOWN: 'export:markdown',
   EXPORT_JSON: 'export:json',
   CONFIG_GET: 'config:get',
+  CHAT_SEND: 'chat:send',
+  CHAT_GET: 'chat:get',
 } as const;
 
 const api: AppApi = {
@@ -73,6 +75,11 @@ const api: AppApi = {
   export: {
     markdown: (sessionId) => ipcRenderer.invoke(CH.EXPORT_MARKDOWN, sessionId),
     json: (sessionId) => ipcRenderer.invoke(CH.EXPORT_JSON, sessionId),
+  },
+
+  chat: {
+    send: (sessionId, message) => ipcRenderer.invoke(CH.CHAT_SEND, sessionId, message),
+    getHistory: (sessionId) => ipcRenderer.invoke(CH.CHAT_GET, sessionId),
   },
 
   config: {

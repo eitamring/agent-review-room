@@ -118,9 +118,10 @@ type Props = {
   manager: ManagerConfig;
   summarySnippet: string;
   loading: boolean;
+  managerDrafting?: boolean;
 };
 
-export function MeetingScene({ reviewers, manager, summarySnippet, loading }: Props) {
+export function MeetingScene({ reviewers, manager, summarySnippet, loading, managerDrafting }: Props) {
   const half = Math.ceil(reviewers.length / 2);
   const leftReviewers = reviewers.slice(0, half);
   const rightReviewers = reviewers.slice(half);
@@ -129,7 +130,7 @@ export function MeetingScene({ reviewers, manager, summarySnippet, loading }: Pr
     <div className={styles.scene} role="img" aria-label="Meeting room with manager robot presenting and reviewer robots watching">
       <span className={styles.sceneLabel}>Meeting Room</span>
       <div className={styles.room}>
-        <ManagerRobot manager={manager} bubbleText={summarySnippet} loading={loading} />
+        <ManagerRobot manager={manager} bubbleText={managerDrafting ? 'Thinking\u2026' : summarySnippet} loading={loading || !!managerDrafting} />
         <div className={styles.reviewerRow}>
           {leftReviewers.map((r) => (
             <ReviewerRobot key={r.id} config={r} />

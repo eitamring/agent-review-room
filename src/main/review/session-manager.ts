@@ -403,6 +403,157 @@ class SessionManager {
     }
   }
 
+  async chatWithManager(sessionId: string, message: string): Promise<string> {
+    const session = await sessionsStore.read(sessionId);
+    if (!session) throw new Error(`Session not found: ${sessionId}`);
+
+    const summaryPath = await resolveSessionPath(sessionId, 'summary.md');
+    let summaryText = '';
+    try { summaryText = await fs.readFile(summaryPath, 'utf-8'); } catch { /* no summary yet */ }
+
+    const allFindings = await findingsStore.read(sessionId);
+    const findingsContext = allFindings.map((f, i) =>
+      `#${i + 1} [${f.severity}] ${f.title}: ${f.summary}`
+    ).join('\n');
+
+    const chatPath = await resolveSessionPath(sessionId, 'chat.jsonl');
+    type ChatMessage = { role: string; content: string; at: string };
+    let history: ChatMessage[] = [];
+    try {
+      const raw = await fs.readFile(chatPath, 'utf-8');
+      history = raw.trim().split('\n').filter(Boolean).map((line) => JSON.parse(line));
+    } catch { /* no history yet */ }
+
+    const userMsg: ChatMessage = { role: 'user', content: message, at: new Date().toISOString() };
+
+    const conversationLines = [...history, userMsg].map((m) =>
+      `${m.role === 'user' ? 'User' : 'Manager'}: ${m.content}`
+    ).join('\n');
+
+    const systemPrompt = [
+      'You are the review manager for this session. You have full context of the review findings and summary.',
+      'Help the user understand the findings, prioritize fixes, and answer questions about the code review.',
+      'Be concise and reference specific findings when relevant.',
+    ].join('\n');
+
+    const prompt = [
+      systemPrompt,
+      '',
+      'Review context:',
+      summaryText,
+      '',
+      'Findings:',
+      findingsContext || 'No findings.',
+      '',
+      'Conversation so far:',
+      conversationLines,
+      '',
+      "Respond to the user's latest message.",
+    ].join('\n');
+
+    const response = await this.runChatCli(session, prompt);
+
+    const assistantMsg: ChatMessage = { role: 'assistant', content: response, at: new Date().toISOString() };
+    await fs.appendFile(chatPath, JSON.stringify(userMsg) + '\n' + JSON.stringify(assistantMsg) + '\n', 'utf-8');
+
+    return response;
+  }
+
+  async getChatHistory(sessionId: string): Promise<Array<{ role: string; content: string; at: string }>> {
+    const chatPath = await resolveSessionPath(sessionId, 'chat.jsonl');
+    try {
+      const raw = await fs.readFile(chatPath, 'utf-8');
+      return raw.trim().split('\n').filter(Boolean).map((line) => JSON.parse(line));
+    } catch {
+      return [];
+    }
+  }
+
+  private async runChatCli(session: ReviewSession, prompt: string): Promise<string> {
+    const { spawn: spawnProc } = await import('child_process');
+    const provider = session.manager.provider;
+    const model = session.manager.model;
+    let executable: string;
+    let cliArgs: string[];
+
+    if (provider === 'codex-cli') {
+      executable = 'codex';
+      cliArgs = ['exec', prompt, ...(model && model !== 'default' ? ['-m', model] : []), '--json'];
+    } else if (provider === 'gemini-cli') {
+      executable = 'gemini';
+      cliArgs = ['-p', prompt, '--output-format', 'json', '-m', model || 'gemini-2.5-flash', '--sandbox'];
+    } else {
+      executable = 'claude';
+      cliArgs = ['-p', prompt, '--output-format', 'json', '--no-session-persistence', '--model', model || 'sonnet'];
+    }
+
+    return new Promise<string>((resolve, reject) => {
+      const proc = spawnProc(executable, cliArgs, {
+        cwd: session.repoPath,
+        stdio: ['ignore', 'pipe', 'pipe'],
+      });
+
+      let stdout = '';
+      const MAX_BUF = 10 * 1024 * 1024;
+      let collected = 0;
+
+      const timeout = setTimeout(() => {
+        proc.kill('SIGTERM');
+        reject(new Error('Chat CLI timed out'));
+      }, 3 * 60 * 1000);
+
+      proc.stdout.on('data', (chunk: Buffer) => {
+        collected += chunk.length;
+        if (collected > MAX_BUF) {
+          proc.kill('SIGTERM');
+          reject(new Error('Chat CLI output exceeded buffer limit'));
+          return;
+        }
+        stdout += chunk.toString();
+      });
+
+      proc.on('close', (code) => {
+        clearTimeout(timeout);
+        const raw = stdout.trim();
+        if (code !== 0 && !raw) {
+          reject(new Error(`Chat CLI exited with code ${code}`));
+          return;
+        }
+
+        try {
+          const envelope = JSON.parse(raw);
+          if (envelope.is_error) {
+            reject(new Error(`Chat CLI error: ${String(envelope.result ?? envelope.response).slice(0, 500)}`));
+            return;
+          }
+          const text = envelope.result ?? envelope.response;
+          if (text != null) {
+            resolve(typeof text === 'string' ? text : JSON.stringify(text));
+            return;
+          }
+          if (typeof envelope === 'string') { resolve(envelope); return; }
+        } catch { /* not JSON */ }
+
+        const lines = raw.split('\n').filter(Boolean);
+        for (let i = lines.length - 1; i >= 0; i--) {
+          try {
+            const evt = JSON.parse(lines[i]);
+            if (evt.result != null) { resolve(typeof evt.result === 'string' ? evt.result : JSON.stringify(evt.result)); return; }
+            if (evt.item?.text) { resolve(evt.item.text); return; }
+            if (evt.message?.content && typeof evt.message.content === 'string') { resolve(evt.message.content); return; }
+          } catch { /* skip */ }
+        }
+
+        resolve(raw || 'No response.');
+      });
+
+      proc.on('error', (err) => {
+        clearTimeout(timeout);
+        reject(err);
+      });
+    });
+  }
+
   async clearAll(): Promise<void> {
     await sessionsStore.clearAll();
   }

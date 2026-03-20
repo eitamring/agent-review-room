@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback, useMemo, startTransition } from 'react';
+import { useEffect, useState, useCallback, useMemo, useRef, startTransition } from 'react';
 import type { ReviewSession, Finding, ReviewEvent } from '../../../../shared/types';
 import { Badge } from '../../components/badge';
 import { MeetingScene } from './meeting-scene';
@@ -21,6 +21,10 @@ export function MeetingRoomScreen({ session, onBack, onNewReview }: Props) {
   const [followUpOpen, setFollowUpOpen] = useState(false);
   const [sceneOpen, setSceneOpen] = useState(true);
   const [prDesc, setPrDesc] = useState<string | null>(null);
+  const [chatMessages, setChatMessages] = useState<Array<{ role: string; content: string; at: string }>>([]);
+  const [chatInput, setChatInput] = useState('');
+  const [chatSending, setChatSending] = useState(false);
+  const chatEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!session) return;
@@ -110,6 +114,31 @@ export function MeetingRoomScreen({ session, onBack, onNewReview }: Props) {
     setFollowUpPrompt('');
   }, [session, followUpPrompt, selectedReviewers]);
 
+  useEffect(() => {
+    if (!session) return;
+    window.api.chat.getHistory(session.id).then(setChatMessages).catch(() => {});
+  }, [session]);
+
+  useEffect(() => {
+    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [chatMessages]);
+
+  const sendChat = useCallback(async () => {
+    if (!session || !chatInput.trim() || chatSending) return;
+    const msg = chatInput.trim();
+    setChatInput('');
+    setChatSending(true);
+    setChatMessages((prev) => [...prev, { role: 'user', content: msg, at: new Date().toISOString() }]);
+    try {
+      const response = await window.api.chat.send(session.id, msg);
+      setChatMessages((prev) => [...prev, { role: 'assistant', content: response, at: new Date().toISOString() }]);
+    } catch (err) {
+      setChatMessages((prev) => [...prev, { role: 'assistant', content: `Error: ${err instanceof Error ? err.message : String(err)}`, at: new Date().toISOString() }]);
+    } finally {
+      setChatSending(false);
+    }
+  }, [session, chatInput, chatSending]);
+
   const toggleReviewer = useCallback((id: string) => {
     setSelectedReviewers((prev) => {
       const next = new Set(prev);
@@ -197,6 +226,7 @@ export function MeetingRoomScreen({ session, onBack, onNewReview }: Props) {
             manager={session.manager}
             summarySnippet={summary ? summary.slice(0, 60) : ''}
             loading={!summary}
+            managerDrafting={chatSending}
           />
         )}
 
@@ -267,6 +297,34 @@ export function MeetingRoomScreen({ session, onBack, onNewReview }: Props) {
           </section>
         </div>
       </div>
+
+      {sessionStatus === 'completed' && summary && (
+        <details className={styles.chatSection}>
+          <summary className={styles.chatToggle}>Consult Manager</summary>
+          <div className={styles.chatMessages}>
+            {chatMessages.map((m, i) => (
+              <div key={i} className={m.role === 'user' ? styles.chatUserMsg : styles.chatAssistantMsg}>
+                {m.content}
+              </div>
+            ))}
+            {chatSending && <div className={styles.chatTyping}>Manager is thinking...</div>}
+            <div ref={chatEndRef} />
+          </div>
+          <div className={styles.chatInput}>
+            <input
+              type="text"
+              placeholder="Ask the manager about the review..."
+              value={chatInput}
+              onChange={(e) => setChatInput(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendChat(); } }}
+              disabled={chatSending}
+            />
+            <button type="button" onClick={sendChat} disabled={chatSending || !chatInput.trim()}>
+              {chatSending ? 'Sending...' : 'Send'}
+            </button>
+          </div>
+        </details>
+      )}
 
       {followUpOpen && (
         <div className={styles.followUpOverlay} onClick={() => !followUpRunning && setFollowUpOpen(false)}>
