@@ -16,7 +16,7 @@ describe('sanitizePromptInput', () => {
   });
 
   it('strips ANSI escape sequences', () => {
-    assert.equal(sanitizePromptInput('hello\x1b[31mred\x1b[0m'), 'helloredm');
+    assert.equal(sanitizePromptInput('hello\x1b[31mred\x1b[0m'), 'hellored');
     assert.equal(sanitizePromptInput('\x1b[1A\x1b[2Jcleared'), 'cleared');
   });
 
