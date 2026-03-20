@@ -19,16 +19,13 @@ import { clusterFindings } from './clustering';
 import { resolveSessionPath } from '../storage/session-paths';
 
 function splitManagerOutput(raw: string): { summary: string; prDesc: string | null } {
-  const startMarker = '---PR_DESC_START---';
-  const endMarker = '---PR_DESC_END---';
-  const startIdx = raw.indexOf(startMarker);
-  if (startIdx < 0) return { summary: raw.trim(), prDesc: null };
-  const endIdx = raw.indexOf(endMarker, startIdx);
-  const summary = raw.slice(0, startIdx).trim();
-  const prDesc = endIdx > startIdx
-    ? raw.slice(startIdx + startMarker.length, endIdx).trim()
-    : raw.slice(startIdx + startMarker.length).trim();
-  return { summary, prDesc: prDesc || null };
+  const marker = /^## Recommended PR Description$/im;
+  const match = raw.match(marker);
+  if (!match || match.index === undefined) return { summary: raw.trim(), prDesc: null };
+  return {
+    summary: raw.slice(0, match.index).trim(),
+    prDesc: raw.slice(match.index + match[0].length).trim() || null,
+  };
 }
 
 function pickRunner(provider: string) {

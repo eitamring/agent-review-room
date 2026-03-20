@@ -81,9 +81,8 @@ export function buildManagerSystemPrompt(hasFindings: boolean, customPrompt?: st
     '',
     'Every claim must reference at least one finding. Do not introduce new issues.',
     '',
-    'After your summary, add a section starting with exactly "---PR_DESC_START---" on its own line,',
-    'followed by a recommended PR description in markdown (## Summary, ## Changes, ## Review Notes),',
-    'then "---PR_DESC_END---" on its own line. This will be extracted separately.',
+    'End your output with a section titled "## Recommended PR Description" containing a ready-to-paste',
+    'GitHub PR body (one-paragraph summary, bullet list of changes, review notes).',
   ].join('\n');
 }
 
