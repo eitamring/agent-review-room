@@ -16,13 +16,6 @@ export type CreateSessionParams = {
   timeoutMinutes?: number;
 };
 
-export type PermissionRequest = {
-  requestId: string;
-  agentId: string;
-  command: string;
-  args: string[];
-};
-
 export type ExportResult = { success: boolean; filePath?: string; error?: string };
 
 export type AppApi = {
@@ -50,10 +43,6 @@ export type AppApi = {
     validateRepo(repoPath: string): Promise<{ valid: boolean; error?: string }>;
     getGitRefs(repoPath: string): Promise<string[]>;
     listSkills(dirPath: string): Promise<Array<{ name: string; path: string; content: string }>>;
-  };
-  permissions: {
-    respond(requestId: string, approved: boolean): Promise<void>;
-    onRequest(handler: (req: PermissionRequest) => void): () => void;
   };
   export: {
     markdown(sessionId: string): Promise<ExportResult>;

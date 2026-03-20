@@ -147,26 +147,3 @@
 }
 .stopBtn:hover { background: color-mix(in srgb, var(--color-critical) 8%, transparent); }
 
-/* Permission dialog content */
-.permissionBody { display: flex; flex-direction: column; gap: var(--space-4); }
-.permissionAgent { font-size: var(--font-size-sm); color: var(--color-text-secondary); margin: 0; }
-.permissionCommand {
-  font-family: var(--font-mono); font-size: var(--font-size-sm);
-  background: var(--color-bg-sunken); border: 1px solid var(--color-border-subtle);
-  border-radius: var(--radius-md); padding: var(--space-3) var(--space-4);
-  overflow-x: auto; white-space: pre-wrap; word-break: break-all;
-  color: var(--color-text-primary); margin: 0;
-}
-.permissionActions { display: flex; justify-content: flex-end; gap: var(--space-3); }
-.denyBtn {
-  padding: var(--space-1) var(--space-4);
-  background: transparent; border: 1px solid var(--color-border-default); border-radius: var(--radius-md);
-  font-size: var(--font-size-sm); color: var(--color-text-secondary); cursor: pointer;
-}
-.denyBtn:hover { border-color: var(--color-text-muted); color: var(--color-text-primary); }
-.approveBtn {
-  padding: var(--space-1) var(--space-4);
-  background: var(--color-accent-primary); border: none; border-radius: var(--radius-md);
-  font-size: var(--font-size-sm); font-weight: var(--font-weight-semibold); color: #fff; cursor: pointer;
-}
-.approveBtn:hover { background: var(--color-accent-hover); }

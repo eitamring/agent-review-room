@@ -33,7 +33,6 @@
 - Meeting Room robots with manager presenting summary
 - Manager summary rendered as Markdown (headings, bold, italic, code, lists)
 - Export markdown/JSON via save dialogs
-- Hand-raise permission flow
 - Reviewer/finding detail inspector with code blocks
 - Error banners and highlighted error activity
 - Keyboard shortcuts (1/2/3 screens, Ctrl+E, Ctrl+N, Ctrl+Enter, Escape)

@@ -18,9 +18,6 @@ export const IPC_CHANNELS = {
   FS_VALIDATE_REPO: 'fs:validate-repo',
   FS_GET_GIT_REFS: 'fs:get-git-refs',
 
-  PERMISSION_REQUEST: 'permission:request',
-  PERMISSION_RESPOND: 'permission:respond',
-
   EXPORT_MARKDOWN: 'export:markdown',
   EXPORT_JSON: 'export:json',
 

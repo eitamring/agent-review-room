@@ -98,7 +98,7 @@ class CodexChatSession implements IChatSession {
 
   async continue(message: string): Promise<string> {
     const args = this.sessionId
-      ? ['exec', 'resume', '--last', '--json', '--', message]
+      ? ['exec', 'resume', this.sessionId!, '--json', '--', message]
       : ['exec', ...(this.model && this.model !== 'default' ? ['-m', this.model] : []), '--json', '--', message];
     const raw = await runCli('codex', args, this.cwd);
     this.extractSession(raw);

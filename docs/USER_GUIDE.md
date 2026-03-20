@@ -196,8 +196,6 @@ Lists all configured reviewers with:
 
 **Robot Characters** -- Each reviewer is represented by an animated pixel-art robot. Robots animate based on state (walking when active, still when done) and show speech bubbles with current activity.
 
-**The "!" Alert** -- A red "!" bubble means the agent is blocked and needs permission. A dialog shows the exact command for you to approve or deny.
-
 **Activity Feed** -- Real-time event log showing agent states: planning, reading, searching, comparing, drafting, blocked, done. Findings and errors are highlighted.
 
 ### Right Pane: Detail Inspector

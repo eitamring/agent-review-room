@@ -46,7 +46,6 @@ export type CreateSessionParams = {
 };
 
 const activeControllers = new Map<string, AbortController>();
-const pendingPermissions = new Map<string, (approved: boolean) => void>();
 const runningSessionIds = new Set<string>();
 
 // ── Semaphore for concurrent reviewer control ────────────────────────────────
@@ -326,16 +325,12 @@ class SessionManager {
         });
       }
 
-      for (const f of allFindings) {
-        if (!findingOwners.get(f.id)) {
-          const owner = session.reviewers.find((_r) =>
-            existingFindings.some((ef) => ef.id === f.id),
-          );
-          if (owner) findingOwners.set(f.id, owner.role);
-        }
-      }
+      const followUpManagerSession: ReviewSession = {
+        ...session,
+        customPrompt: followUpContext,
+      };
 
-      const summaryText = await runManagerAgent(session, clusters, allFindings, findingOwners, onEvent);
+      const summaryText = await runManagerAgent(followUpManagerSession, clusters, allFindings, findingOwners, onEvent);
 
       const summaryPath = await resolveSessionPath(sessionId, 'summary.md');
       await fs.writeFile(summaryPath, summaryText, 'utf-8');
@@ -377,11 +372,6 @@ class SessionManager {
     if (controller) {
       controller.abort();
       activeControllers.delete(sessionId);
-    }
-
-    for (const [id, resolve] of pendingPermissions) {
-      resolve(false);
-      pendingPermissions.delete(id);
     }
 
     runningSessionIds.delete(sessionId);
@@ -474,6 +464,9 @@ class SessionManager {
     await sessionsStore.clearAll();
   }
 
+  // Trust boundary: repoPath targets any local git repo the user selects.
+  // This is by design — validateRepo confirms it is a valid git repository
+  // before it is used as cwd for child processes.
   async validateRepo(repoPath: string): Promise<{ valid: boolean; error?: string }> {
     const { execFile } = await import('child_process');
     const { promisify } = await import('util');
@@ -502,26 +495,6 @@ class SessionManager {
     }
   }
 
-  async requestPermission(
-    agentId: string,
-    command: string,
-    args: string[],
-    notifyRenderer: (requestId: string, agentId: string, command: string, args: string[]) => void,
-  ): Promise<boolean> {
-    const requestId = crypto.randomUUID();
-    return new Promise<boolean>((resolve) => {
-      pendingPermissions.set(requestId, resolve);
-      notifyRenderer(requestId, agentId, command, args);
-    });
-  }
-
-  resolvePermission(requestId: string, approved: boolean): void {
-    const resolve = pendingPermissions.get(requestId);
-    if (resolve) {
-      pendingPermissions.delete(requestId);
-      resolve(approved);
-    }
-  }
 }
 
 export const sessionManager = new SessionManager();

@@ -1,5 +1,5 @@
 import { contextBridge, ipcRenderer } from 'electron';
-import type { AppApi, PermissionRequest } from './api';
+import type { AppApi } from './api';
 
 // Channel constants are inlined here to avoid cross-directory require()
 // which can fail under Electron's sandbox mode.
@@ -17,8 +17,6 @@ const CH = {
   FS_PICK_DIRECTORY: 'fs:pick-directory',
   FS_VALIDATE_REPO: 'fs:validate-repo',
   FS_GET_GIT_REFS: 'fs:get-git-refs',
-  PERMISSION_REQUEST: 'permission:request',
-  PERMISSION_RESPOND: 'permission:respond',
   SESSION_CLEAR_ALL: 'session:clear-all',
   FS_LIST_SKILLS: 'fs:list-skills',
   EXPORT_MARKDOWN: 'export:markdown',
@@ -59,17 +57,6 @@ const api: AppApi = {
     validateRepo: (repoPath) => ipcRenderer.invoke(CH.FS_VALIDATE_REPO, repoPath),
     getGitRefs: (repoPath) => ipcRenderer.invoke(CH.FS_GET_GIT_REFS, repoPath),
     listSkills: (dirPath) => ipcRenderer.invoke(CH.FS_LIST_SKILLS, dirPath),
-  },
-
-  permissions: {
-    respond: (requestId, approved) =>
-      ipcRenderer.invoke(CH.PERMISSION_RESPOND, requestId, approved),
-    onRequest: (handler) => {
-      const listener = (_event: Electron.IpcRendererEvent, req: PermissionRequest) =>
-        handler(req);
-      ipcRenderer.on(CH.PERMISSION_REQUEST, listener);
-      return () => ipcRenderer.removeListener(CH.PERMISSION_REQUEST, listener);
-    },
   },
 
   export: {

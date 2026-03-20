@@ -40,9 +40,8 @@ export function registerIpcHandlers(): void {
       if (!VALID_ROLES.has(r.role)) {
         throw new Error(`Invalid role: ${r.role}`);
       }
-      if (r.skillFilePath) {
-        const { assertWithinRepo } = await import('../security/path-guard');
-        await assertWithinRepo(params.repoPath, r.skillFilePath);
+      if (r.skillFilePath && typeof r.skillFilePath !== 'string') {
+        throw new Error('skillFilePath must be a string');
       }
     }
 
@@ -101,9 +100,17 @@ export function registerIpcHandlers(): void {
 
     const normalized = pathM.resolve(dirPath);
     if (normalized.includes('..') || dirPath.includes('..')) return [];
+    let resolved: string;
+    try {
+      resolved = await fsP.realpath(normalized);
+    } catch {
+      return [];
+    }
     const homeDir = os.homedir();
     const appData = (await import('electron')).app.getPath('userData');
-    if (!normalized.startsWith(homeDir) && !normalized.startsWith(appData)) return [];
+    const withinDir = (dir: string, allowed: string) =>
+      dir === allowed || dir.startsWith(allowed + pathM.sep);
+    if (!withinDir(resolved, homeDir) && !withinDir(resolved, appData)) return [];
 
     try {
       const entries = await fsP.readdir(normalized, { withFileTypes: true });
@@ -136,12 +143,6 @@ export function registerIpcHandlers(): void {
 
   ipcMain.handle(IPC_CHANNELS.FS_GET_GIT_REFS, (_event, repoPath: string) =>
     sessionManager.getGitRefs(repoPath),
-  );
-
-  ipcMain.handle(
-    IPC_CHANNELS.PERMISSION_RESPOND,
-    (_event, requestId: string, approved: boolean) =>
-      sessionManager.resolvePermission(requestId, approved),
   );
 
   ipcMain.handle(IPC_CHANNELS.EXPORT_MARKDOWN, async (_event, sessionId: string) => {
