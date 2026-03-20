@@ -38,6 +38,7 @@ const DEFAULT_CONFIG: AppConfig = {
       ],
     },
   ],
+  skills: [],
 };
 
 let cached: AppConfig | null = null;
