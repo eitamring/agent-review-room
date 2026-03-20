@@ -88,8 +88,9 @@ export async function runCodexReviewerAgent(
         try {
           const evt = JSON.parse(line);
           processCodexEvent(evt, reviewer.id, onEvent);
-          if (evt.type === 'message' && evt.role === 'assistant' && typeof evt.content === 'string') {
-            lastAssistantText = evt.content;
+          const item = evt.item as { type?: string; text?: string } | undefined;
+          if (evt.type === 'item.completed' && item?.type === 'agent_message' && item.text) {
+            lastAssistantText = item.text;
           }
         } catch { /* partial line */ }
       }
@@ -138,37 +139,27 @@ function processCodexEvent(
   agentId: string,
   onEvent: (event: ReviewEvent) => Promise<void>,
 ): void {
-  const type = evt.type as string;
+  const type = String(evt.type ?? '');
+  if (!type) return;
 
-  if (type === 'message' && evt.role === 'assistant') {
-    const content = evt.content as string | undefined;
-    if (content) {
-      const short = content.replace(/\s+/g, ' ').trim().slice(0, 150);
-      if (short && !short.startsWith('{')) {
-        void onEvent({ type: 'agent.note', agentId, at: now(), note: short });
-      }
+  const item = evt.item as { type?: string; text?: string; command?: string; status?: string } | undefined;
+
+  if (type === 'item.completed' && item?.type === 'agent_message' && item.text) {
+    const short = item.text.replace(/\s+/g, ' ').trim().slice(0, 150);
+    if (short && !short.startsWith('{')) {
+      void onEvent({ type: 'agent.note', agentId, at: now(), note: short });
     }
   }
 
-  if (type === 'function_call' || type === 'tool_call') {
-    const name = (evt.name ?? evt.function ?? 'tool') as string;
+  if ((type === 'item.started' || type === 'item.completed') && item?.type === 'command_execution' && item.command) {
+    const cmd = item.command.replace(/^\/bin\/bash -lc "/, '').replace(/"$/, '').slice(0, 100);
+    const state = cmd.includes('grep') || cmd.includes('find') || cmd.includes('rg') ? 'searching' : 'reading';
     void onEvent({
       type: 'agent.status',
       agentId,
       at: now(),
-      state: 'reading',
-      label: name.slice(0, 80),
-    });
-  }
-
-  if (type === 'exec' || type === 'shell') {
-    const cmd = (evt.command ?? evt.cmd ?? '') as string;
-    void onEvent({
-      type: 'agent.status',
-      agentId,
-      at: now(),
-      state: cmd.includes('grep') || cmd.includes('find') ? 'searching' : 'reading',
-      label: cmd.slice(0, 80),
+      state: state as 'searching' | 'reading',
+      label: `$ ${cmd}`,
     });
   }
 }
