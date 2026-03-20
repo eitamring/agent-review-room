@@ -8,6 +8,7 @@ export const IPC_CHANNELS = {
   REVIEW_START: 'review:start',
   REVIEW_STOP: 'review:stop',
   REVIEW_FOLLOWUP: 'review:followup',
+  REVIEW_GENERATE_PR_DESC: 'review:generate-pr-desc',
 
   EVENTS_GET: 'events:get',
 

@@ -37,6 +37,7 @@ export type AppApi = {
     start(sessionId: string): Promise<{ started: boolean }>;
     stop(sessionId: string): Promise<void>;
     followUp(sessionId: string, prompt: string, reviewerIds: string[]): Promise<{ started: boolean }>;
+    generatePrDesc(sessionId: string): Promise<string>;
   };
   events: {
     get(sessionId: string): Promise<ReviewEvent[]>;

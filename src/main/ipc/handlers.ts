@@ -82,6 +82,10 @@ export function registerIpcHandlers(): void {
     },
   );
 
+  ipcMain.handle(IPC_CHANNELS.REVIEW_GENERATE_PR_DESC, async (_event, sessionId: string) => {
+    return sessionManager.generatePrDesc(sessionId);
+  });
+
   ipcMain.handle(IPC_CHANNELS.EVENTS_GET, (_event, sessionId: string) =>
     eventLog.read(sessionId),
   );

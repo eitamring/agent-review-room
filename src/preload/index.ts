@@ -11,6 +11,7 @@ const CH = {
   REVIEW_START: 'review:start',
   REVIEW_STOP: 'review:stop',
   REVIEW_FOLLOWUP: 'review:followup',
+  REVIEW_GENERATE_PR_DESC: 'review:generate-pr-desc',
   EVENTS_GET: 'events:get',
   FINDINGS_GET: 'findings:get',
   FS_PICK_DIRECTORY: 'fs:pick-directory',
@@ -38,6 +39,8 @@ const api: AppApi = {
     stop: (sessionId) => ipcRenderer.invoke(CH.REVIEW_STOP, sessionId),
     followUp: (sessionId, prompt, reviewerIds) =>
       ipcRenderer.invoke(CH.REVIEW_FOLLOWUP, sessionId, prompt, reviewerIds),
+    generatePrDesc: (sessionId) =>
+      ipcRenderer.invoke(CH.REVIEW_GENERATE_PR_DESC, sessionId),
   },
 
   events: {
