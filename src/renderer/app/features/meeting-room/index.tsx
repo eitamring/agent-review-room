@@ -34,15 +34,20 @@ export function MeetingRoomScreen({ session, onBack, onNewReview }: Props) {
   useEffect(() => {
     if (!session) return;
     let stale = false;
+    let pollTimer: ReturnType<typeof setTimeout>;
 
     const pollStatus = async () => {
-      const fresh = await window.api.session.get(session.id);
-      if (stale) return;
-      if (fresh) {
-        setSessionStatus(fresh.status);
-        if (fresh.status !== 'completed' && fresh.status !== 'failed') {
-          setTimeout(pollStatus, 2000);
+      try {
+        const fresh = await window.api.session.get(session.id);
+        if (stale) return;
+        if (fresh) {
+          setSessionStatus(fresh.status);
+          if (fresh.status !== 'completed' && fresh.status !== 'failed') {
+            pollTimer = setTimeout(pollStatus, 2000);
+          }
         }
+      } catch {
+        if (!stale) pollTimer = setTimeout(pollStatus, 3000);
       }
     };
     pollStatus();
@@ -73,7 +78,7 @@ export function MeetingRoomScreen({ session, onBack, onNewReview }: Props) {
     };
     fetchSummary();
 
-    return () => { stale = true; };
+    return () => { stale = true; clearTimeout(pollTimer); };
   }, [session]);
 
   const exportMarkdown = useCallback(() => {

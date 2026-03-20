@@ -134,7 +134,7 @@ class GeminiChatSession implements IChatSession {
   async start(systemPrompt: string, firstMessage: string): Promise<string> {
     const prompt = `${systemPrompt}\n\n${firstMessage}`;
     const raw = await runCli('gemini', [
-      '-p', '--output-format', 'json', '-m', this.model || 'gemini-2.5-flash', '--sandbox', '--', prompt,
+      '-p', '--output-format', 'json', '-m', this.model || 'gemini-2.5-flash', '--', prompt,
     ], this.cwd);
     try {
       const envelope = JSON.parse(raw);
