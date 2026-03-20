@@ -2,6 +2,7 @@
   "name": "agent-review-room",
   "version": "0.1.0",
   "description": "Local-first desktop app for orchestrating LLM code reviewers",
+  "author": "eitam",
   "main": "dist/main/index.js",
   "scripts": {
     "dev": "concurrently \"npm:build:main\" \"npm:build:preload\" && concurrently -k -n renderer,app \"npm:dev:renderer\" \"npm:dev:app\"",

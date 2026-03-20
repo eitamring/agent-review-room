@@ -15,10 +15,21 @@ Requires at least one supported CLI installed and authenticated:
 - [Gemini CLI](https://github.com/google-gemini/gemini-cli) (`gemini`)
 
 No API keys are configured in the app -- each CLI manages its own authentication.
+The app itself does not run a hosted backend or built-in telemetry service, but review runs are executed through those local third-party CLIs, which may send prompts and repository context to their providers depending on your CLI/auth setup.
+
+## Demo
+
+### Setting The Run
+
+![Setting the run](media/setting-the-run.gif)
+
+### Resume Talk With Manager
+
+![Resume talk with manager](media/resume-talk-with-manager.gif)
 
 ## How It Works
 
-1. **Setup** -- Pick a local git repo, choose a review target (working tree or ref range), write optional instructions, toggle PR format, configure 1-5 reviewer agents. Each agent is selected from a dropdown populated by `.md` skill files in `skills/` (or `~/.config/agent-review-room/skills/`). Built-in agents: security, architecture, regression, test-gap, performance, document-reviewer. Use "Import Agents Folder" to load from any directory, or select "+ custom" for a one-off agent with an inline description.
+1. **Setup** -- Pick a local git repo, choose a review target (working tree or ref range), write optional instructions, toggle PR format, configure 1-5 reviewer agents. Each agent is selected from a dropdown populated by bundled `.md` skill files (shipped with the app) or `~/.config/agent-review-room/skills/`. Built-in agents: security, architecture, regression, test-gap, performance, document-reviewer. Use "Import Agents Folder" to load from any directory, or select "+ custom" for a one-off agent with an inline description.
 
 2. **Live Review** -- Reviewers run concurrently (up to 3 at a time; Gemini limited to 1 due to Docker sandbox) via their respective CLIs. Watch their activity in real-time: file reads, searches, notes. Robot characters animate in the room scene. If one reviewer fails, the rest continue.
 
@@ -61,12 +72,12 @@ src/
 - `contextIsolation: true`, `sandbox: true`, `nodeIntegration: false`
 - CLI providers use restricted git subcommands only: `diff`, `log`, `show`, `status`, `branch`, `tag`, `rev-parse`, `for-each-ref`, `ls-files`, `blame`, `shortlog`
 - Claude CLI uses `--allowedTools Read,Grep,Glob,Bash(git diff:*),Bash(git log:*),Bash(git show:*),...` (specific subcommands, not `git:*`)
-- Codex CLI uses `--sandbox read-only`
-- Gemini CLI uses `--sandbox` (Docker-based, limited to 1 concurrent)
+- Codex CLI uses `--sandbox read-only` for reviewers, manager, and chat
+- Gemini CLI uses `--sandbox` (Docker-based, limited to 1 concurrent reviewer) for reviewers, manager, and chat
 - File tools enforce repo boundary via `fs.realpath` (symlink-safe)
 - Skill file paths validated (must be `.md`, exist on disk, under 50KB) before session creation
 - `read-diff` uses `--no-ext-diff --no-textconv` to prevent external tool execution
-- All agents receive a read-only prompt injection instructing them not to write, edit, or modify any files
+- Claude manager/chat sessions run with an empty `--allowedTools` set, and all agents receive read-only prompt injection instructing them not to write, edit, or modify any files
 - Restrictive CSP in production
 
 ## Provider Model
@@ -83,7 +94,7 @@ Default models: Claude Sonnet, Codex Default, Gemini 2.5 Flash. All models are c
 
 ## CI
 
-GitHub Actions runs lint, typecheck, build, and tests on push/PR to main. Tests use Node's built-in test runner (`node --test`).
+GitHub Actions runs lint, typecheck, build, package verification, and tests on push/PR to main. Tests use Node's built-in test runner (`node --test`).
 
 ## Assets
 

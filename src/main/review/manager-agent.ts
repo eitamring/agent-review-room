@@ -71,10 +71,10 @@ async function runViaCli(session: ReviewSession, findingsText: string, taskConte
 
   if (provider === 'codex-cli') {
     executable = 'codex';
-    cliArgs = ['exec', prompt, ...(model && model !== 'default' ? ['-m', model] : []), '--json'];
+    cliArgs = ['exec', prompt, ...(model && model !== 'default' ? ['-m', model] : []), '--sandbox', 'read-only', '--json'];
   } else if (provider === 'gemini-cli') {
     executable = 'gemini';
-    cliArgs = ['-p', prompt, '--output-format', 'json', '-m', model || 'gemini-2.5-flash'];
+    cliArgs = ['-p', prompt, '--output-format', 'json', '-m', model || 'gemini-2.5-flash', '--sandbox'];
   } else {
     executable = 'claude';
     cliArgs = ['-p', prompt, '--output-format', 'json', '--no-session-persistence', '--model', model || 'sonnet', '--allowedTools', ''];

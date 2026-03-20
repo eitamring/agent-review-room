@@ -66,12 +66,12 @@ class ClaudeChatSession implements IChatSession {
   async start(systemPrompt: string, firstMessage: string): Promise<string> {
     const prompt = `IMPORTANT: You are in READ-ONLY mode. Do NOT write or modify files.\n\n${systemPrompt}\n\n${firstMessage}`;
     const raw = await runCli('claude', [
-      '-p', '--output-format', 'json', '--model', this.model || 'sonnet', '--', prompt,
+      '-p', '--output-format', 'json', '--model', this.model || 'sonnet', '--allowedTools', '', '--', prompt,
     ], this.cwd);
     try { this.sessionId = JSON.parse(raw).session_id; } catch { /* extract from response */ }
     if (!this.sessionId) {
       const result = await runCli('claude', [
-        '-p', '--output-format', 'json', '--model', this.model || 'sonnet', '--', prompt,
+        '-p', '--output-format', 'json', '--model', this.model || 'sonnet', '--allowedTools', '', '--', prompt,
       ], this.cwd);
       try { this.sessionId = JSON.parse(result).session_id; } catch { /* no session */ }
       return this.parseResponse(result);
@@ -83,12 +83,12 @@ class ClaudeChatSession implements IChatSession {
     if (this.sessionId) {
       const raw = await runCli('claude', [
         '-p', '--output-format', 'json', '--model', this.model || 'sonnet',
-        '--resume', this.sessionId, '--', message,
+        '--allowedTools', '', '--resume', this.sessionId, '--', message,
       ], this.cwd);
       return this.parseResponse(raw);
     }
     return runCli('claude', [
-      '-p', '--output-format', 'json', '--model', this.model || 'sonnet', '--no-session-persistence', '--', message,
+      '-p', '--output-format', 'json', '--model', this.model || 'sonnet', '--allowedTools', '', '--no-session-persistence', '--', message,
     ], this.cwd);
   }
 
@@ -108,14 +108,14 @@ class CodexChatSession implements IChatSession {
   async start(systemPrompt: string, firstMessage: string): Promise<string> {
     this.systemPrompt = systemPrompt;
     const prompt = `IMPORTANT: You are in READ-ONLY mode. Do NOT write or modify files.\n\n${systemPrompt}\n\n${firstMessage}`;
-    const args = ['exec', ...(this.model && this.model !== 'default' ? ['-m', this.model] : []), '--json', '--', prompt];
+    const args = ['exec', ...(this.model && this.model !== 'default' ? ['-m', this.model] : []), '--sandbox', 'read-only', '--json', '--', prompt];
     const raw = await runCli('codex', args, this.cwd);
     return this.parseResponse(raw);
   }
 
   async continue(message: string, history?: ChatHistoryEntry[]): Promise<string> {
     const context = buildContextPrompt(this.systemPrompt, history ?? [], message);
-    const args = ['exec', ...(this.model && this.model !== 'default' ? ['-m', this.model] : []), '--json', '--', context];
+    const args = ['exec', ...(this.model && this.model !== 'default' ? ['-m', this.model] : []), '--sandbox', 'read-only', '--json', '--', context];
     const raw = await runCli('codex', args, this.cwd);
     return this.parseResponse(raw);
   }
@@ -141,7 +141,7 @@ class GeminiChatSession implements IChatSession {
     this.systemPrompt = systemPrompt;
     const prompt = `IMPORTANT: You are in READ-ONLY mode. Do NOT write or modify files.\n\n${systemPrompt}\n\n${firstMessage}`;
     const raw = await runCli('gemini', [
-      '-p', prompt, '--output-format', 'json', '-m', this.model || 'gemini-2.5-flash',
+      '-p', prompt, '--output-format', 'json', '-m', this.model || 'gemini-2.5-flash', '--sandbox',
     ], this.cwd);
     return this.parseResponse(raw);
   }
@@ -149,7 +149,7 @@ class GeminiChatSession implements IChatSession {
   async continue(message: string, history?: ChatHistoryEntry[]): Promise<string> {
     const context = buildContextPrompt(this.systemPrompt, history ?? [], message);
     const raw = await runCli('gemini', [
-      '-p', context, '--output-format', 'json', '-m', this.model || 'gemini-2.5-flash',
+      '-p', context, '--output-format', 'json', '-m', this.model || 'gemini-2.5-flash', '--sandbox',
     ], this.cwd);
     return this.parseResponse(raw);
   }

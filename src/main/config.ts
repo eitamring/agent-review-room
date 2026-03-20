@@ -43,6 +43,18 @@ const DEFAULT_CONFIG: AppConfig = {
 
 let cached: AppConfig | null = null;
 
+function uniquePaths(paths: string[]): string[] {
+  return [...new Set(paths.map((p) => path.resolve(p)))];
+}
+
+async function loadJsonIfExists<T>(filePath: string): Promise<T | null> {
+  try {
+    return JSON.parse(await fs.readFile(filePath, 'utf-8')) as T;
+  } catch {
+    return null;
+  }
+}
+
 async function loadSkillsFromDir(dir: string): Promise<SkillOption[]> {
   try {
     const entries = await fs.readdir(dir, { withFileTypes: true });
@@ -63,16 +75,17 @@ export async function loadConfig(): Promise<AppConfig> {
 
   let config: Omit<AppConfig, 'skills'> | null = null;
 
-  const userPath = path.join(app.getPath('userData'), 'config.json');
-  try {
-    config = JSON.parse(await fs.readFile(userPath, 'utf-8'));
-  } catch { /* no user config */ }
+  const configPaths = uniquePaths([
+    path.join(app.getPath('userData'), 'config.json'),
+    path.join(app.getAppPath(), 'config.json'),
+    path.join(process.cwd(), 'config.json'),
+  ]);
 
-  if (!config) {
-    const projectPath = path.join(process.cwd(), 'config.json');
-    try {
-      config = JSON.parse(await fs.readFile(projectPath, 'utf-8'));
-    } catch { /* no project config */ }
+  for (const configPath of configPaths) {
+    config = await loadJsonIfExists<Omit<AppConfig, 'skills'>>(configPath);
+    if (config) {
+      break;
+    }
   }
 
   let providers = DEFAULT_CONFIG.providers;
@@ -82,9 +95,18 @@ export async function loadConfig(): Promise<AppConfig> {
     providers = config.providers as ProviderOption[];
   }
 
-  // Load skills: user skills dir > project skills dir > built-in
-  let skills = await loadSkillsFromDir(path.join(app.getPath('userData'), 'skills'));
-  if (skills.length === 0) skills = await loadSkillsFromDir(path.join(process.cwd(), 'skills'));
+  // Load skills: user skills dir > bundled app skills dir > cwd skills dir
+  let skills: SkillOption[] = [];
+  for (const skillsDir of uniquePaths([
+    path.join(app.getPath('userData'), 'skills'),
+    path.join(app.getAppPath(), 'skills'),
+    path.join(process.cwd(), 'skills'),
+  ])) {
+    skills = await loadSkillsFromDir(skillsDir);
+    if (skills.length > 0) {
+      break;
+    }
+  }
 
   cached = { providers, skills };
   return cached;

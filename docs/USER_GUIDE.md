@@ -20,18 +20,19 @@ npm run dev
 ```
 
 The app opens as a desktop window. No cloud backend, no account creation.
+The app itself does not run a hosted backend or built-in telemetry service, but review runs are executed through your locally installed third-party CLIs, which may send prompts and repository context to their providers depending on your CLI/auth setup.
 
 ### Security Note
 
-This app runs AI agents that can READ files on your machine. Reviewer agents use provider-specific sandboxing (Claude: `--allowedTools`, Codex: `--sandbox read-only`, Gemini: `--sandbox` Docker). Manager and chat sessions use READ-ONLY prompt injection without CLI-level sandboxing.
+This app runs AI agents that can READ files on your machine. Reviewer, manager, and chat sessions use provider-specific sandboxing where supported (Claude: empty `--allowedTools`, Codex: `--sandbox read-only`, Gemini: `--sandbox` Docker) plus a READ-ONLY system prompt.
 
 - Claude CLI uses `--allowedTools` restricted to Read, Grep, Glob, and specific git subcommands (diff, log, show, status, blame, ls-files). Not `git:*`.
-- Codex CLI uses `--sandbox read-only`.
-- Gemini CLI uses `--sandbox` (Docker-based, limited to 1 concurrent reviewer).
+- Codex CLI uses `--sandbox read-only` for reviewer, manager, and chat flows.
+- Gemini CLI uses `--sandbox` (Docker-based, limited to 1 concurrent reviewer) for reviewer, manager, and chat flows.
 - All file access is restricted to the repository you select. Path traversal and symlink escapes are blocked via `fs.realpath`.
 - Skill file paths are validated (must be `.md`, exist on disk, under 50KB) before session creation.
 - `read-diff` uses `--no-ext-diff --no-textconv` to prevent external tool execution.
-- All agents receive a read-only prompt injection instructing them not to write, edit, or modify any files.
+- Claude manager/chat sessions use an empty `--allowedTools` set, and all agents receive a read-only prompt injection instructing them not to write, edit, or modify any files.
 
 ---
 
@@ -312,7 +313,8 @@ On Linux: `~/.config/agent-review-room/`. On macOS: `~/Library/Application Suppo
 Each reviewer agent is defined by a `.md` skill file that describes what it should focus on. The app loads skills from these locations (first match wins):
 
 1. `~/.config/agent-review-room/skills/` (user skills)
-2. `skills/` in the project root (built-in skills)
+2. Bundled app `skills/` directory (built-in skills)
+3. `skills/` in the project root when running from source
 
 Built-in agents: **security**, **architecture**, **regression**, **test-gap**, **performance**, **document-reviewer**.
 

@@ -57,7 +57,7 @@ export function registerIpcHandlers(): void {
         if (!r.skillFilePath.endsWith('.md')) {
           throw new Error(`skillFilePath must be a .md file: ${r.skillFilePath}`);
         }
-        const allowedRoots = [process.cwd(), os.homedir(), app.getPath('userData')];
+        const allowedRoots = [app.getAppPath(), process.cwd(), os.homedir(), app.getPath('userData')];
         let withinAllowed = false;
         for (const root of allowedRoots) {
           try {
@@ -67,7 +67,7 @@ export function registerIpcHandlers(): void {
           } catch { /* not within this root */ }
         }
         if (!withinAllowed) {
-          throw new Error(`skillFilePath must be within the app, home, or userData directory: ${r.skillFilePath}`);
+          throw new Error(`skillFilePath must be within the app bundle, home, or userData directory: ${r.skillFilePath}`);
         }
         try {
           const stat = await fs.stat(r.skillFilePath);
