@@ -19,9 +19,7 @@ export function MeetingRoomScreen({ session, onBack, onNewReview }: Props) {
   const [selectedReviewers, setSelectedReviewers] = useState<Set<string>>(new Set());
   const [followUpRunning, setFollowUpRunning] = useState(false);
   const [sceneOpen, setSceneOpen] = useState(true);
-  const [rightTab, setRightTab] = useState<'summary' | 'pr-desc'>('summary');
   const [prDesc, setPrDesc] = useState<string | null>(null);
-  const [prDescLoading, setPrDescLoading] = useState(false);
 
   useEffect(() => {
     if (!session) return;
@@ -55,6 +53,7 @@ export function MeetingRoomScreen({ session, onBack, onNewReview }: Props) {
       if (stale) return;
       if (s) {
         setSummary(s);
+        window.api.review.generatePrDesc(session.id).then((pd) => { if (!stale) setPrDesc(pd); }).catch(() => {});
       } else {
         setTimeout(fetchSummary, 2000);
       }
@@ -231,46 +230,19 @@ export function MeetingRoomScreen({ session, onBack, onNewReview }: Props) {
           </section>
 
           <section className={styles.summaryPanel}>
-            <div className={styles.tabBar}>
-              <button
-                type="button"
-                className={`${styles.tab} ${rightTab === 'summary' ? styles.tabActive : ''}`}
-                onClick={() => setRightTab('summary')}
-              >
-                Manager Summary
-              </button>
-              <button
-                type="button"
-                className={`${styles.tab} ${rightTab === 'pr-desc' ? styles.tabActive : ''}`}
-                onClick={() => {
-                  setRightTab('pr-desc');
-                  if (!prDesc && !prDescLoading && session) {
-                    setPrDescLoading(true);
-                    window.api.review.generatePrDesc(session.id)
-                      .then((text) => { setPrDesc(text); setPrDescLoading(false); })
-                      .catch(() => { setPrDesc('Failed to generate PR description.'); setPrDescLoading(false); });
-                  }
-                }}
-              >
-                PR Description
-              </button>
-            </div>
-
-            {rightTab === 'summary' && (
-              summary ? (
-                <div
-                  className={styles.summaryText}
-                  dangerouslySetInnerHTML={{ __html: renderMarkdown(summary) }}
-                />
-              ) : (
-                <p className={styles.muted}>Summary not yet available.</p>
-              )
+            <h2 className={styles.panelTitle}>Manager Summary</h2>
+            {summary ? (
+              <div
+                className={styles.summaryText}
+                dangerouslySetInnerHTML={{ __html: renderMarkdown(summary) }}
+              />
+            ) : (
+              <p className={styles.muted}>Summary not yet available.</p>
             )}
 
-            {rightTab === 'pr-desc' && (
-              prDescLoading ? (
-                <p className={styles.muted}>Generating PR description...</p>
-              ) : prDesc ? (
+            {prDesc && (
+              <details className={styles.prDescDetails}>
+                <summary className={styles.prDescToggle}>Recommended PR Description</summary>
                 <div className={styles.prDescContainer}>
                   <div
                     className={styles.summaryText}
@@ -284,9 +256,7 @@ export function MeetingRoomScreen({ session, onBack, onNewReview }: Props) {
                     Copy to clipboard
                   </button>
                 </div>
-              ) : (
-                <p className={styles.muted}>Click this tab to generate a PR description.</p>
-              )
+              </details>
             )}
           </section>
         </div>
