@@ -174,7 +174,6 @@ export function processStreamEvent(
       const short = msg.content.replace(/\s+/g, ' ').trim().slice(0, 150);
       if (short && !short.startsWith('{')) {
         void onEvent({ type: 'agent.note', agentId, at: now(), note: short });
-        void onEvent({ type: 'agent.status', agentId, at: now(), state: 'drafting', label: short });
       }
       return;
     }
@@ -185,7 +184,6 @@ export function processStreamEvent(
         const short = block.text.replace(/\s+/g, ' ').trim().slice(0, 150);
         if (short && !short.startsWith('{')) {
           void onEvent({ type: 'agent.note', agentId, at: now(), note: short });
-          void onEvent({ type: 'agent.status', agentId, at: now(), state: 'drafting', label: short });
         }
       }
       if (block.type === 'tool_use' && block.name) {
