@@ -107,6 +107,7 @@ export function MeetingRoomScreen({ session, onBack, onNewReview }: Props) {
         if (stale) return;
         setFindings(updatedFindings);
         if (updatedSummary) setSummary(updatedSummary);
+        window.api.review.generatePrDesc(session.id).then((pd) => { if (!stale) setPrDesc(pd); }).catch(() => {});
       } else if (s && s.status === 'failed') {
         setFollowUpRunning(false);
         setSessionStatus('failed');

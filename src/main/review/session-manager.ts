@@ -302,6 +302,21 @@ class SessionManager {
             );
             for (const f of findings) findingOwners.set(f.id, reviewer.role);
             newFindings.push(...findings);
+          } catch (err) {
+            const msg = err instanceof Error ? err.message : String(err);
+            await onEvent({
+              type: 'agent.note',
+              agentId: reviewer.id,
+              at: new Date().toISOString(),
+              note: `${reviewer.role} reviewer failed: ${msg}`,
+            });
+            await onEvent({
+              type: 'agent.status',
+              agentId: reviewer.id,
+              at: new Date().toISOString(),
+              state: 'done',
+              label: 'failed',
+            });
           } finally {
             sem.release();
           }
@@ -330,10 +345,17 @@ class SessionManager {
         customPrompt: followUpContext,
       };
 
-      const summaryText = await runManagerAgent(followUpManagerSession, clusters, allFindings, findingOwners, onEvent);
+      const rawOutput = await runManagerAgent(followUpManagerSession, clusters, allFindings, findingOwners, onEvent);
+      const split = splitManagerOutput(rawOutput);
+      const summaryText = split.summary;
 
       const summaryPath = await resolveSessionPath(sessionId, 'summary.md');
       await fs.writeFile(summaryPath, summaryText, 'utf-8');
+
+      if (split.prDesc) {
+        const prDescPath = await resolveSessionPath(sessionId, 'pr-desc.md');
+        await fs.writeFile(prDescPath, split.prDesc, 'utf-8');
+      }
       await onEvent({
         type: 'meeting.summary',
         at: new Date().toISOString(),

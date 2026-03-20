@@ -1,10 +1,13 @@
 import fs from 'fs/promises';
+import path from 'path';
+import os from 'os';
 import { ipcMain, dialog } from 'electron';
 import { IPC_CHANNELS } from './channels';
 import { sessionManager } from '../review/session-manager';
 import { eventLog } from '../storage/event-log';
 import { findingsStore } from '../storage/findings';
 import { loadConfig } from '../config';
+import { assertWithinDirectory } from '../security/path-guard';
 import type { CreateSessionParams } from '../review/session-manager';
 
 let handlersRegistered = false;
@@ -42,6 +45,30 @@ export function registerIpcHandlers(): void {
       }
       if (r.skillFilePath && typeof r.skillFilePath !== 'string') {
         throw new Error('skillFilePath must be a string');
+      }
+      if (r.skillFilePath) {
+        const builtInSkills = path.resolve(process.cwd(), 'skills');
+        const userSkills = path.join(os.homedir(), '.config', 'agent-review-room', 'skills');
+        const repoDir = params.repoPath;
+        let allowed = false;
+        for (const dir of [builtInSkills, userSkills, repoDir]) {
+          try {
+            await assertWithinDirectory(dir, r.skillFilePath);
+            allowed = true;
+            break;
+          } catch { /* not in this directory */ }
+        }
+        if (!allowed) {
+          throw new Error(`skillFilePath is outside allowed directories: ${r.skillFilePath}`);
+        }
+      }
+      if (r.role === 'custom') {
+        if (r.customRoleTitle && r.customRoleTitle.length > 100) {
+          throw new Error('customRoleTitle must be 100 characters or fewer');
+        }
+        if (r.customRoleDesc && r.customRoleDesc.length > 5000) {
+          throw new Error('customRoleDesc must be 5000 characters or fewer');
+        }
       }
     }
 

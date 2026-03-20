@@ -29,8 +29,9 @@ This app runs AI agents that can READ files on your machine. Each agent runs in 
 - Codex CLI uses `--sandbox read-only`.
 - Gemini CLI uses `--sandbox` with `--approval-mode yolo`.
 - All file access is restricted to the repository you select. Path traversal and symlink escapes are blocked via `fs.realpath`.
-- Skill file paths are validated against the repo boundary before session creation.
+- Skill file paths are validated against allowed directories (built-in skills, user config skills, repo) before session creation.
 - `read-diff` uses `--no-ext-diff --no-textconv` to prevent external tool execution.
+- All agents receive a read-only prompt injection instructing them not to write, edit, or modify any files.
 
 ---
 

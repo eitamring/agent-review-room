@@ -65,8 +65,9 @@ src/
 - Codex CLI uses `--sandbox read-only`
 - Gemini CLI uses `--sandbox` and `--approval-mode yolo`
 - File tools enforce repo boundary via `fs.realpath` (symlink-safe)
-- Skill file paths validated against repo boundary before session creation
+- Skill file paths validated against allowed directories (built-in skills, user config skills, repo) before session creation
 - `read-diff` uses `--no-ext-diff --no-textconv` to prevent external tool execution
+- All agents receive a read-only prompt injection instructing them not to write, edit, or modify any files
 - Restrictive CSP in production
 
 ## Provider Model

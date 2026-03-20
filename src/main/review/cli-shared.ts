@@ -149,6 +149,11 @@ export async function buildPrompt(
     );
   }
 
+  lines.push(
+    '',
+    'IMPORTANT: You are in READ-ONLY mode. Do NOT attempt to write, edit, or modify any files. Only read and analyze.',
+  );
+
   if (options?.includeJsonInstructions !== false) {
     lines.push('', FINDINGS_JSON_INSTRUCTIONS);
   }
